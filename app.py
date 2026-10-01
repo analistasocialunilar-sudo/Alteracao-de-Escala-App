@@ -28,7 +28,6 @@ cursor.execute('''
         motivo TEXT,
         datas_plantao TEXT,
         observacoes TEXT,
-        telefone_familia TEXT,
         status_notificacao TEXT,
         data_notificacao TEXT,
         atendente_notificacao TEXT
