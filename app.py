@@ -221,7 +221,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
 
                 # MONTAGEM DA MENSAGEM PARA A RECEPÇÃO DA UNIDADE
-                msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
+                msg_recepcao = f"""*INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
 *Paciente:* {nome_paciente_final}
 *Programa:* {programa}
@@ -294,7 +294,8 @@ Olá! Informamos que houve uma alteração na escala de atendimento do paciente 
 
 *Observações:* {row['observacoes']}
 
-Estamos à disposição para eventuais dúvidas."""
+Favor, confirmar o recebimento e ciência deste comunicado.
+Agradecemos sua atenção e colaboração!"""
 
                     texto_encoded = urllib.parse.quote(texto_whatsapp)
                     num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
