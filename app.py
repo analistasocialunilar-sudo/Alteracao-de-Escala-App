@@ -194,8 +194,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"])
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Cobertura de atestado/férias")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - plantão diurno")
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888")
-
+                
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
             btn_enviar = st.form_submit_button("💾 Salvar e Enviar para a Unidade")
