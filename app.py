@@ -194,7 +194,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - Noturno")
                 
                 # CAMPO Opcional para a Terceirizada
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888 (Pode ser deixado em branco)")
+                telefone_familia = st.text_input("WhatsApp do Responsável/Família (obrigatório)", placeholder="Ex: 558791128133 (não Pode ser deixado em branco)")
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
@@ -249,7 +249,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     # Permite à Unidade definir ou editar o número do telefone antes de enviar
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
+                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: 5587999998888"
