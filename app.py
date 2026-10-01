@@ -11,7 +11,7 @@ from datetime import datetime
 conn = sqlite3.connect("escala_hospitalar.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Criação da tabela de ocorrências atualizada (com campo de atendente)
+# Tabela responsável por guardar o histórico de alterações registradas
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS ocorrencias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,14 +39,12 @@ st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="�
 # ==============================================================================
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN (Segurança de Acesso)
 # ==============================================================================
-# Dicionário de utilizadores e credenciais (Pode alterar as senhas aqui):
 USUARIOS = {
     "terceirizada": {"senha": "123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
     "unidade": {"senha": "456", "perfil": "Unidade de Saúde", "nome": "Equipa da Unidade"},
     "admin": {"senha": "admin", "perfil": "Administrador", "nome": "Gestor do Sistema"}
 }
 
-# Inicialização do estado de login na sessão do navegador
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
     st.session_state["usuario_nome"] = ""
@@ -68,7 +66,7 @@ def realizar_logout():
     st.session_state["usuario_perfil"] = ""
     st.rerun()
 
-# Tela de Login (Exibida quando não autenticado)
+# Tela de Login
 if not st.session_state["autenticado"]:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
     st.subheader("🔐 Acesso Restrito - Faça o seu Login")
@@ -81,8 +79,8 @@ if not st.session_state["autenticado"]:
         if btn_login:
             realizar_login(user_input, pass_input)
             
-    st.info("💡 **Dica de Acesso Rápido para Testes:**\n- **Terceirizada:** Utilizador `terceirizada` | Palavra-passe `123`\n- **Unidade de Saúde:** Utilizador `unidade` | Palavra-passe `456`\n- **Administrador:** Utilizador `admin` | Palavra-passe `admin`")
-    st.stop()  # Interrompe a execução do restante do código até o login ser efetuado
+    st.info("💡 **Dica de Acesso Rápido para Testes:**\n- **Terceirizada:** Utilizador `terceirizada` | Palavra-passe `123`\n- **Unidade de Saúde:** Utilizador `unidade` | Palavra-passe `456`\n- **Administrador:** Utilizador `admin` | Palavra-passe `admin`")[cite: 6]
+    st.stop()
 
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES (Em Ordem Alfabética de A a Z)
@@ -135,14 +133,13 @@ with col_user:
 
 st.divider()
 
-# Controle de Abas conforme o Perfil de Acesso
 perfil_atual = st.session_state["usuario_perfil"]
 
 if perfil_atual == "Terceirizada":
     abas_disponiveis = ["📝 1. Registrar Alteração (Terceirizada)"]
 elif perfil_atual == "Unidade de Saúde":
     abas_disponiveis = ["📲 2. Notificar Família (Unidade de Saúde)", "📊 3. Histórico e Relatórios"]
-else:  # Administrador tem acesso total
+else:
     abas_disponiveis = [
         "📝 1. Registrar Alteração (Terceirizada)", 
         "📲 2. Notificar Família (Unidade de Saúde)", 
@@ -152,13 +149,13 @@ else:  # Administrador tem acesso total
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA EMPRESA TERCEIRIZADA
+# ABA 1: REGISTRO PELA EMPRESA TERCEIRIZADA (Telefone Opcional)
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
     with abas[idx_aba1]:
         st.header("📋 Registrar Informe de Alteração de Escala")
-        st.write("Selecione o paciente na lista suspensa (em ordem alfabética) para registrar a ocorrência.")
+        st.write("Selecione o paciente na lista suspensa para registrar a ocorrência.")
 
         paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada)
         programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
@@ -195,18 +192,22 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"])
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Solicitação a próprio pedido")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - Noturno")
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (com DDD e 55) *", placeholder="Ex: 5587999998888")
+                
+                # CAMPO Opcional para a Terceirizada
+                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888 (Pode ser deixado em branco)")
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
             btn_enviar = st.form_submit_button("💾 Salvar e Enviar para a Unidade")
 
         if btn_enviar:
-            if not nome_paciente_final or not telefone_familia:
-                st.error("⚠️ Os campos 'Nome do Paciente' e 'WhatsApp da Família' são obrigatórios.")
+            # Validação apenas para o nome do paciente
+            if not nome_paciente_final:
+                st.error("⚠️ O campo 'Nome do Paciente' é obrigatório.")
             else:
                 data_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 tipos_str = ", ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
+                telefone_salvar = telefone_familia.strip() if telefone_familia.strip() else "Não informado"
                 
                 cursor.execute('''
                     INSERT INTO ocorrencias (
@@ -217,7 +218,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ''', (
                     data_atual, nome_paciente_final, programa, tipos_str, profissionais,
                     ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
-                    telefone_familia, "Pendente", "Não notificado", "Pendente"
+                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
                 ))
                 conn.commit()
                 st.success(f"✅ Informe do paciente '{nome_paciente_final}' gravado com sucesso no banco de dados!")
@@ -244,7 +245,15 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     st.write(f"**Motivo:** {row['motivo']}")
                     st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
                     st.write(f"**Observações:** {row['observacoes']}")
-                    st.write(f"**Telefone Família:** {row['telefone_familia']}")
+                    
+                    # Permite à Unidade definir ou editar o número do telefone antes de enviar
+                    tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
+                    telefone_editado = st.text_input(
+                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
+                        value=tel_atual, 
+                        key=f"tel_{row['id']}", 
+                        placeholder="Ex: 5587999998888"
+                    )
 
                     texto_whatsapp = f"""*INFORME DE ALTERAÇÃO DE ESCALA - ATENÇÃO DOMICILIAR* 🏥
 
@@ -264,19 +273,23 @@ Olá! Informamos que houve uma alteração na escala de atendimento do paciente 
 Estamos à disposição para eventuais dúvidas."""
 
                     texto_encoded = urllib.parse.quote(texto_whatsapp)
-                    link_wa = f"https://wa.me/{row['telefone_familia']}?text={texto_encoded}"
+                    num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
+                    link_wa = f"https://wa.me/{num_link}?text={texto_encoded}"
 
                     st.markdown("---")
                     col_wa, col_atendente, col_btn = st.columns([1, 1.5, 1.5])
                     
                     with col_wa:
-                        st.markdown(f'''
-                            <a href="{link_wa}" target="_blank">
-                                <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                                    📱 Abrir WhatsApp
-                                </button>
-                            </a>
-                        ''', unsafe_allow_html=True)
+                        if telefone_editado.strip():
+                            st.markdown(f'''
+                                <a href="{link_wa}" target="_blank">
+                                    <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                                        📱 Abrir WhatsApp
+                                    </button>
+                                </a>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            st.warning("⚠️ Insira o número do telefone acima para ativar o botão do WhatsApp.")
                     
                     with col_atendente:
                         nome_atendente = st.text_input(
@@ -287,17 +300,18 @@ Estamos à disposição para eventuais dúvidas."""
                         )
                     
                     with col_btn:
-                        st.write("") # Espaçamento vertical
+                        st.write("")
                         if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
                             if not nome_atendente.strip():
                                 st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
                             else:
                                 data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
                                 cursor.execute('''
                                     UPDATE ocorrencias 
-                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ? 
+                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
                                     WHERE id = ?
-                                ''', (data_notif, nome_atendente.strip(), row['id']))
+                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
                                 conn.commit()
                                 st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
                                 st.rerun()
@@ -315,7 +329,6 @@ if "📊 3. Histórico e Relatórios" in abas_disponiveis:
         if df_todos.empty:
             st.warning("Nenhum registro encontrado no banco de dados.")
         else:
-            # --- PAINEL DE FILTROS AVANÇADOS ---
             st.subheader("🔍 Filtros de Pesquisa")
             f_col1, f_col2, f_col3 = st.columns(3)
             
@@ -330,7 +343,6 @@ if "📊 3. Histórico e Relatórios" in abas_disponiveis:
                 lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
                 filtro_programa = st.selectbox("Filtrar por Programa:", lista_programas_filtro)
 
-            # Aplicação dos Filtros no DataFrame
             df_filtrado = df_todos.copy()
 
             if filtro_status != "Todos":
@@ -342,10 +354,9 @@ if "📊 3. Histórico e Relatórios" in abas_disponiveis:
             if filtro_programa != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
 
-            st.write(f"Exibindo **{len(df_filtrado)}** registo(s) encontrado(s):")
+            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
             st.dataframe(df_filtrado, use_container_width=True)
 
-            # Download do Relatório Filtrado
             csv = df_filtrado.to_csv(index=False).encode('utf-8')
             st.download_button(
                 label="📥 Baixar Relatório Filtrado (CSV/Excel)",
