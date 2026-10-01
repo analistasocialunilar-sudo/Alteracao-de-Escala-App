@@ -275,7 +275,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
+                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: 5587999998888"
