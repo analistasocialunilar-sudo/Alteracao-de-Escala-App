@@ -8,7 +8,7 @@ from datetime import datetime
 # CONFIGURAÇÃO GERAL
 # ==============================================================================
 # INSIRA AQUI O NÚMEROS DO WHATSAPP DA RECEPÇÃO DA UNIDADE (com 55 e DDD)
-TELEFONE_RECEPCAO_UNIDADE = "55879112-8133"  # <--- Altere para o número real da recepção
+TELEFONE_RECEPCAO_UNIDADE = "558791128133"  # <--- Altere para o número real da recepção
 
 conn = sqlite3.connect("escala_hospitalar.db", check_same_thread=False)
 cursor = conn.cursor()
