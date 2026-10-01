@@ -5,13 +5,14 @@ import urllib.parse
 from datetime import datetime
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
+# CONFIGURAÇÃO GERAL
 # ==============================================================================
-# Conexão permanente ao banco de dados SQLite 'escala_hospitalar.db'
+# INSIRA AQUI O NÚMEROS DO WHATSAPP DA RECEPÇÃO DA UNIDADE (com 55 e DDD)
+TELEFONE_RECEPCAO_UNIDADE = "55879112-8133"  # <--- Altere para o número real da recepção
+
 conn = sqlite3.connect("escala_hospitalar.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Tabela responsável por guardar o histórico de alterações registradas
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS ocorrencias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,11 +34,10 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Configuração visual e layout da aplicação Streamlit
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
 
 # ==============================================================================
-# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN (Segurança de Acesso)
+# AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 USUARIOS = {
     "terceirizada": {"senha": "123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
@@ -66,7 +66,6 @@ def realizar_logout():
     st.session_state["usuario_perfil"] = ""
     st.rerun()
 
-# Tela de Login
 if not st.session_state["autenticado"]:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
     st.subheader("🔐 Acesso Restrito - Faça o seu Login")
@@ -79,11 +78,11 @@ if not st.session_state["autenticado"]:
         if btn_login:
             realizar_login(user_input, pass_input)
             
-    st.info("💡 **Dica de Acesso Rápido para Testes:**\n- **Terceirizada:** Utilizador `terceirizada` | Palavra-passe `123`\n- **Unidade de Saúde:** Utilizador `unidade` | Palavra-passe `456`\n- **Administrador:** Utilizador `admin` | Palavra-passe `admin`")[cite: 6]
+    st.info("💡 **Dica de Acesso Rápido para Testes:**\n- **Terceirizada:** Utilizador `terceirizada` | Palavra-passe `123`\n- **Unidade de Saúde:** Utilizador `unidade` | Palavra-passe `456`\n- **Administrador:** Utilizador `admin` | Palavra-passe `admin`")
     st.stop()
 
 # ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES (Em Ordem Alfabética de A a Z)
+# BASE DE DADOS DE PACIENTES
 # ==============================================================================
 PACIENTES_BASE = {
     "Ana Beatriz Corcino da Silva": "PUL",
@@ -118,7 +117,7 @@ PACIENTES_BASE = {
 lista_nomes_ordenada = list(PACIENTES_BASE.keys())
 
 # ==============================================================================
-# 4. CABEÇALHO DO SISTEMA E NAVEGAÇÃO DE PERFIS
+# CABEÇALHO E NAVEGAÇÃO
 # ==============================================================================
 col_tit, col_user = st.columns([3, 1])
 with col_tit:
@@ -149,7 +148,7 @@ else:
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA EMPRESA TERCEIRIZADA (Telefone Opcional)
+# ABA 1: REGISTRO PELA TERCEIRIZADA (Com envio direto para Recepção)
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
@@ -192,16 +191,13 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"])
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Solicitação a próprio pedido")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - Noturno")
-                
-                # CAMPO Opcional para a Terceirizada
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (obrigatório)", placeholder="Ex: 558791128133 (não Pode ser deixado em branco)")
+                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888")
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
             btn_enviar = st.form_submit_button("💾 Salvar e Enviar para a Unidade")
 
         if btn_enviar:
-            # Validação apenas para o nome do paciente
             if not nome_paciente_final:
                 st.error("⚠️ O campo 'Nome do Paciente' é obrigatório.")
             else:
@@ -221,7 +217,36 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                     telefone_salvar, "Pendente", "Não notificado", "Pendente"
                 ))
                 conn.commit()
-                st.success(f"✅ Informe do paciente '{nome_paciente_final}' gravado com sucesso no banco de dados!")
+                
+                st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
+
+                # MONTAGEM DA MENSAGEM PARA A RECEPÇÃO DA UNIDADE
+                msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
+
+*Paciente:* {nome_paciente_final}
+*Programa:* {programa}
+*Tipo de Alteração:* {tipos_str}
+
+*Profissionais:*
+{profissionais}
+
+*Motivo:* {motivo}
+*Data / Período:* {datas_plantao}
+*Observações:* {observacoes}
+
+_Por favor, realizar a notificação da família no sistema._"""
+
+                msg_encoded = urllib.parse.quote(msg_recepcao)
+                link_recepcao = f"https://wa.me/{TELEFONE_RECEPCAO_UNIDADE}?text={msg_encoded}"
+
+                st.markdown("### 📲 Próximo Passo: Enviar para a Recepção")
+                st.markdown(f'''
+                    <a href="{link_recepcao}" target="_blank">
+                        <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">
+                            📲 Enviar Informe via WhatsApp para a Recepção
+                        </button>
+                    </a>
+                ''', unsafe_allow_html=True)
 
 # ==============================================================================
 # ABA 2: PAINEL DE NOTIFICAÇÃO (UNIDADE DE SAÚDE)
@@ -246,10 +271,9 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
                     st.write(f"**Observações:** {row['observacoes']}")
                     
-                    # Permite à Unidade definir ou editar o número do telefone antes de enviar
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
+                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: 5587999998888"
@@ -317,7 +341,7 @@ Estamos à disposição para eventuais dúvidas."""
                                 st.rerun()
 
 # ==============================================================================
-# ABA 3: HISTÓRICO COMPLETO E FILTROS DE RELATÓRIO
+# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS
 # ==============================================================================
 if "📊 3. Histórico e Relatórios" in abas_disponiveis:
     idx_aba3 = abas_disponiveis.index("📊 3. Histórico e Relatórios")
