@@ -273,10 +273,10 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
+                        "WhatsApp do Responsável/Família (com 55 E DDD) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
-                        placeholder="Ex: 5587999998888"
+                        placeholder="Ex: 558791128133"
                     )
 
                     texto_whatsapp = f"""*INFORME DE ALTERAÇÃO DE ESCALA - ATENÇÃO DOMICILIAR* 🏥
