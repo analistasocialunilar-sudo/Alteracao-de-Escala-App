@@ -9,11 +9,9 @@ from datetime import datetime
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 
-# Alterado para 'v2' para criar a tabela com a estrutura atualizada corretamente
 conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Tabela de ocorrências atualizada com todas as colunas necessárias
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS ocorrencias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,29 +33,10 @@ cursor.execute('''
 ''')
 conn.commit()
 
-# Configuração da página no Streamlit
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
 
 # ==============================================================================
-# FUNÇÃO PARA CONVERTER NOME EM APENAS INICIAIS
-# ==============================================================================
-def obter_iniciais(nome):
-    if not nome or nome == "➕ Cadastrar Novo Paciente":
-        return nome
-    if "." in nome and len(nome.split()) <= 6 and all(len(p) <= 2 for p in nome.split() if p != "de" and p != "da"):
-        return nome
-    
-    partes = nome.split()
-    iniciais = []
-    ignorar = {"de", "da", "do", "das", "dos", "e"}
-    for p in partes:
-        p_limpo = p.strip(".,")
-        if p_limpo.lower() not in ignorar and p_limpo:
-            iniciais.append(p_limpo[0].upper() + ".")
-    return " ".join(iniciais)
-
-# ==============================================================================
-# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN (Segurança de Acesso)
+# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 USUARIOS = {
     "terceirizada": {"senha": "123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
@@ -86,7 +65,6 @@ def realizar_logout():
     st.session_state["usuario_perfil"] = ""
     st.rerun()
 
-# Tela de Login
 if not st.session_state["autenticado"]:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
     st.subheader("🔐 Acesso Restrito - Faça o seu Login")
@@ -103,35 +81,35 @@ if not st.session_state["autenticado"]:
     st.stop()
 
 # ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES (Em Ordem Alfabética de A a Z)
+# 3. BASE DE DADOS DE PACIENTES (Lista de Iniciais Personalizada)
 # ==============================================================================
 PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
     "A. V. S. S.": "PCP",
     "A. O. M.": "PUL",
     "B. R. S.": "PUL",
-    "Catarina de Carvalho Jambeiro": "PUL",
-    "Davi Lucas Ribeiro de Souza Lino": "PUL",
-    "Enzo Gabriel Borges Amorim": "PUL",
-    "Evellyn Vitoria Lopes de Melo": "PUL",
-    "Ezequiel Marques de Araujo": "PUL",
-    "João Alves Pereira": "PUL",
-    "Jose Rutenio do Amaral Junior": "PUL",
-    "Julio Vinícius de Melo": "PCP",
-    "Maiane Silva de Lima": "PUL",
-    "Maria das Graças Sobreira de Almeida": "PUL",
-    "Maria Julia Almeida de Oliveira": "PUL",
-    "Matheus Oliveira Guimarães": "PUL",
-    "Noah Benício Brito de Vasconcelos": "PUL",
-    "Pedro Vinícius Costa da Silva": "PUL",
-    "Pérola Jasmin Viana": "PCP",
-    "Samuel Rozendo do Nascimento": "PUL",
-    "Sebastiana Maria de Souza Lima": "PUL",
-    "Terezinha de Jesus Alencar": "PUL",
-    "Thaiane Santos de Morgado": "PUL",
-    "Valéria Pereira dos Santos": "PUL",
-    "Victor Emanoel Almeida de Freitas": "PUL",
-    "Zezito Gomes Pereira Junior": "PUL",
+    "C. C. J.": "PUL",
+    "D. L. R. S. L.": "PUL",
+    "E. G. B. A.": "PUL",
+    "E. V. L. M.": "PUL",
+    "E. M. A.": "PUL",
+    "J. A. P.": "PUL",
+    "J. R. A. J.": "PUL",
+    "J. V. M.": "PCP",
+    "M. S. L.": "PUL",
+    "M. G. S. S. A.": "PUL",
+    "M. J. A. O.": "PUL",
+    "M. O. G.": "PUL",
+    "N. B. B. V.": "PUL",
+    "P. V. C. S.": "PUL",
+    "P. J. V.": "PCP",
+    "S. R. N.": "PUL",
+    "S. M. S. L.": "PUL",
+    "T. J. A.": "PUL",
+    "T. S. M.": "PUL",
+    "V. P. S.": "PUL",
+    "V. E. A. F.": "PUL",
+    "Z. G. P. J.": "PUL",
     "➕ Cadastrar Novo Paciente": "PUL"
 }
 
@@ -169,7 +147,7 @@ else:
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA TERCEIRIZADA (Envio direto p/ Recepção)
+# ABA 1: REGISTRO PELA TERCEIRIZADA
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
@@ -181,11 +159,9 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
         programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
 
         if paciente_selecionado == "➕ Cadastrar Novo Paciente":
-            nome_paciente_final = st.text_input("Digite o Nome Completo do Novo Paciente *", placeholder="Ex: Ana Maria de Souza")
+            nome_paciente_final = st.text_input("Digite as Iniciais do Novo Paciente *", placeholder="Ex: X. Y. Z.")
         else:
             nome_paciente_final = paciente_selecionado
-
-        paciente_iniciais = obter_iniciais(nome_paciente_final)
 
         with st.form("form_terceirizada"):
             col1, col2 = st.columns(2)
@@ -222,7 +198,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
 
         if btn_enviar:
             if not nome_paciente_final:
-                st.error("⚠️ O campo 'Nome do Paciente' é obrigatório.")
+                st.error("⚠️ O campo 'Paciente' é obrigatório.")
             else:
                 data_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
@@ -244,7 +220,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
 
                 msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
-*Paciente:* {paciente_iniciais}
+*Paciente:* {nome_paciente_final}
 *Programa:* {programa}
 *Tipo de Alteração:* {tipos_str}
 
@@ -270,7 +246,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                 ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# ABA 2: PAINEL DE NOTIFICAÇÃO (MODELO HUMANIZADO DE MENSAGEM)
+# ABA 2: PAINEL DE NOTIFICAÇÃO
 # ==============================================================================
 if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
     idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
@@ -284,8 +260,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
             st.info("🎉 Nenhuma notificação pendente no momento.")
         else:
             for idx, row in df_pendentes.iterrows():
-                paciente_iniciais = obter_iniciais(row['paciente'])
-                with st.expander(f"📌 Registro #{row['id']} - Paciente: {paciente_iniciais} ({row['programa']})"):
+                with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
                     st.write(f"**Data de Registro:** {row['data_registro']}")
                     st.write(f"**Tipo de Alteração:** {row['tipo_alteracao']}")
                     st.write(f"**Profissionais:** {row['profissionais']}")
@@ -305,7 +280,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
 
 Olá, boa tarde!
 
-A fim de garantir a assistência do paciente *{paciente_iniciais}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
+A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
 
 {row['profissionais']}
 *Data:* {row['datas_plantao']}
@@ -347,66 +322,4 @@ Agradecemos sua atenção e colaboração!"""
                             if not nome_atendente.strip():
                                 st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
                             else:
-                                data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
-                                cursor.execute('''
-                                    UPDATE ocorrencias 
-                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
-                                    WHERE id = ?
-                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
-                                conn.commit()
-                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
-                                st.rerun()
-
-# ==============================================================================
-# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS (EXPORTAÇÃO FORMATADA)
-# ==============================================================================
-if "📊 3. Histórico e Relatórios" in abas_disponiveis:
-    idx_aba3 = abas_disponiveis.index("📊 3. Histórico e Relatórios")
-    with abas[idx_aba3]:
-        st.header("📊 Histórico Completo de Ocorrências e Relatórios")
-        
-        df_todos = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn)
-
-        if df_todos.empty:
-            st.warning("Nenhum registro encontrado no banco de dados.")
-        else:
-            st.subheader("🔍 Filtros de Pesquisa")
-            f_col1, f_col2, f_col3 = st.columns(3)
-            
-            with f_col1:
-                filtro_status = st.selectbox("Status de Notificação:", ["Todos", "Pendente", "Concluído"])
-            
-            with f_col2:
-                lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].unique()))
-                filtro_paciente = st.selectbox("Filtrar por Paciente:", lista_pacientes_filtro)
-                
-            with f_col3:
-                lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
-                filtro_programa = st.selectbox("Filtrar por Programa:", lista_programas_filtro)
-
-            df_filtrado = df_todos.copy()
-
-            if filtro_status != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
-                
-            if filtro_paciente != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["paciente"] == filtro_paciente]
-                
-            if filtro_programa != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
-
-            df_exibicao = df_filtrado.copy()
-            df_exibicao['paciente'] = df_exibicao['paciente'].apply(obter_iniciais)
-
-            st.write(f"Exibindo **{len(df_exibicao)}** registro(s) encontrado(s):")
-            st.dataframe(df_exibicao, use_container_width=True)
-
-            csv_organizado = df_exibicao.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
-            
-            st.download_button(
-                label="📥 Baixar Relatório Filtrado (Excel / CSV Organizado)",
-                data=csv_organizado,
-                file_name=f"relatorio_escalas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
-            )
+                                data_notif = datetime.now().strftime("%Y-%m-%d %H:%
