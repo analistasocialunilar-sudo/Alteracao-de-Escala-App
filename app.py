@@ -188,7 +188,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                         "Outros"
                     ]
                 )
-                profissionais = st.text_area("Profissionais Envolvidos (Nome e Conselho)", placeholder="Ex:\n- SAÍDA: SUZANA MARIA COELHO SILVA (COREN: 2.288.895)\n- SUPORTE: TACIANA GOMES DE MEDEIROS (COREN: 1.710.047)")
+                profissionais = st.text_area("Profissionais Envolvidos (Nome e Conselho)", placeholder="Ex:\n- SAÍDA: xxx xxxx xxxx (COREN: x.xxx.xxx)\n- SUPORTE: TACIANA GOMES DE MEDEIROS (COREN: 1.710.047)")
 
             with col2:
                 ja_da_escala = st.radio("Já é da escala do paciente?", ["Sim", "Não"])
@@ -218,9 +218,9 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ''', (
                     data_atual, nome_paciente_final, programa, tipos_str, profissionais,
                     ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
-                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
+                    "Pendente", "Não notificado", "Pendente"
                 ))
-                conn.commit()
+            conn.commit()
                 
                 st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
 
@@ -277,7 +277,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com DDD e 55) *", 
+                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: 5587999998888"
