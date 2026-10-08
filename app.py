@@ -2,7 +2,6 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 from datetime import datetime
-import urllib.parse
 
 # ==============================================================================
 # 1. CONFIGURAÇÃO DA PÁGINA E BANCO DE DADOS (SQLite)
@@ -15,29 +14,31 @@ st.set_page_config(
 
 DB_NAME = "estoque_farmacia.db"
 
+# Lista de Pacientes extraída e atualizada com as enfermeiras responsáveis
 PACIENTES_RAW = [
-    {"nome": "MARCIA RODRIGUES RIBEIRO", "telefone": "5574991984281", "programa": "PCP"},
-    {"nome": "SILVANA APARECIDA SILVA DE MELO", "telefone": "558781740027", "programa": "PCP"},
-    {"nome": "VIRGINIA FERNANDES DE MEDEIROS DINIZ", "telefone": "5587988261915", "programa": "PCP"},
-    {"nome": "JULIO VINICIUS DA CRUZ", "telefone": "557488631920", "programa": "PCP"},
-    {"nome": "ANA VITORIA SOARES ALVES", "telefone": "5587981355610", "programa": "PCP"},
-    {"nome": "ARISTON OLIVEIRA MARTINS", "telefone": "5574988127404", "programa": "PCP"},
-    {"nome": "ASTOR MOLLER", "telefone": "5574988372718", "programa": "PCP"},
-    {"nome": "ANTONIA MARIA SANDES GOMES", "telefone": "558738660679", "programa": "PCP"},
-    {"nome": "FRANCISCO MUNIZ BARRETTO", "telefone": "5587988239169", "programa": "PCP"},
-    {"nome": "ZILDA GONDIM DE MENDONCA", "telefone": "558788262357", "programa": "PCP"},
-    {"nome": "TEREZINHA TELES DA SILVA", "telefone": "557488661963", "programa": "PCP"},
-    {"nome": "ALMIRA COELHO ASSIS", "telefone": "557436112226", "programa": "PCP"},
-    {"nome": "REGINA LUCIA DE AZEVEDO", "telefone": "558781185975", "programa": "PCP"},
-    {"nome": "PEROLA JASMIN VIANA", "telefone": "558788687707", "programa": "PCP"},
-    {"nome": "OLINDA CELINA CARDOSO", "telefone": "557488090018", "programa": "PCP"},
-    {"nome": "GABRIEL FRANCISCO ALVES", "telefone": "558738618469", "programa": "PCP"},
-    {"nome": "FELIX RODRIGUES DE ANDRADE", "telefone": "558738643655", "programa": "PCP"},
-    {"nome": "RUTE CORREIA MOREIRA", "telefone": "5581981011560", "programa": "PCP"},
-    {"nome": "ISABEL AMORIM GOMES SOUZA", "telefone": "558788298523", "programa": "PCP"},
-    {"nome": "ARTUR GAEL BARBOSA VIEIRA DA SILVA CRUZ", "telefone": "558788362329", "programa": "PCP"}
+    {"nome": "MARCIA RODRIGUES RIBEIRO", "telefone": "(74)991-984-281", "programa": "PCP"},
+    {"nome": "SILVANA APARECIDA SILVA DE MELO", "telefone": "(87)8174-0027", "programa": "PCP"},
+    {"nome": "VIRGINIA FERNANDES DE MEDEIROS DINIZ", "telefone": "(87)988-261-915", "programa": "PCP"},
+    {"nome": "JULIO VINICIUS DA CRUZ", "telefone": "(74)8863-1920", "programa": "PCP"},
+    {"nome": "ANA VITORIA SOARES ALVES", "telefone": "(87)981-355-610", "programa": "PCP"},
+    {"nome": "ARISTON OLIVEIRA MARTINS", "telefone": "(74)988-127-404", "programa": "PCP"},
+    {"nome": "ASTOR MOLLER", "telefone": "(74)988-372-718", "programa": "PCP"},
+    {"nome": "ANTONIA MARIA SANDES GOMES", "telefone": "(87)3866-0679", "programa": "PCP"},
+    {"nome": "FRANCISCO MUNIZ BARRETTO", "telefone": "(87)988-239-169", "programa": "PCP"},
+    {"nome": "ZILDA GONDIM DE MENDONCA", "telefone": "(87)8826-2357", "programa": "PCP"},
+    {"nome": "TEREZINHA TELES DA SILVA", "telefone": "(74)8866-1963", "programa": "PCP"},
+    {"nome": "ALMIRA COELHO ASSIS", "telefone": "(74)3611-2226", "programa": "PCP"},
+    {"nome": "REGINA LUCIA DE AZEVEDO", "telefone": "(87)8118-5975", "programa": "PCP"},
+    {"nome": "PEROLA JASMIN VIANA", "telefone": "(87)8868-7707", "programa": "PCP"},
+    {"nome": "OLINDA CELINA CARDOSO", "telefone": "(74)8809-0018", "programa": "PCP"},
+    {"nome": "GABRIEL FRANCISCO ALVES", "telefone": "(87)38618469", "programa": "PCP"},
+    {"nome": "FELIX RODRIGUES DE ANDRADE", "telefone": "(87)38643655", "programa": "PCP"},
+    {"nome": "RUTE CORREIA MOREIRA", "telefone": "(81)981-011-560", "programa": "PCP"},
+    {"nome": "ISABEL AMORIM GOMES SOUZA", "telefone": "(87)8829-8523", "programa": "PCP"},
+    {"nome": "ARTUR GAEL BARBOSA VIEIRA DA SILVA CRUZ", "telefone": "(87)8836-2329", "programa": "PCP"}
 ]
 
+# Monta a lista final com atribuição automática das Enfermeiras de Referência
 PACIENTES_INICIAIS = []
 for p in PACIENTES_RAW:
     enfermeira = "Nara Armentano" if "PEROLA JASMIN" in p["nome"].upper() else "Amanda Ellen Bezerra dos Santos"
@@ -50,9 +51,11 @@ for p in PACIENTES_RAW:
     })
 
 def init_db():
+    """Inicializa as tabelas do SQLite e carrega os pacientes no banco de dados."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     
+    # Tabela de Produtos (Medicamentos/Insumos)
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -64,6 +67,7 @@ def init_db():
         )
     ''')
 
+    # Tabela de Pacientes
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS pacientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +79,7 @@ def init_db():
         )
     ''')
 
+    # Tabela de Movimentações
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS movimentacoes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -90,6 +95,7 @@ def init_db():
         )
     ''')
 
+    # Tabela de Contagem do Domicílio enviada pelas famílias
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS contagem_domicilio (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -103,6 +109,7 @@ def init_db():
         )
     ''')
 
+    # Carrega os pacientes no banco de dados caso esteja vazio
     cursor.execute("SELECT COUNT(*) FROM pacientes")
     if cursor.fetchone()[0] == 0:
         for p in PACIENTES_INICIAIS:
@@ -218,6 +225,7 @@ if perfil == "Cuidador / Família":
 
                 st.info(f"👩‍⚕️ **Enfermeira de Referência:** {enf_ref} | 📌 **Programa:** {prog_pac}")
 
+                # Permite escolher da lista existente ou digitar um novo item
                 opcoes_produtos = ["-- Selecionar da lista --"] + df_produtos["nome"].tolist() + ["Outro (digitar manualmente)"] if not df_produtos.empty else ["Outro (digitar manualmente)"]
                 item_opcao = st.selectbox("Selecione o Item / Medicamento *", opcoes_produtos)
 
@@ -440,12 +448,12 @@ if perfil in ["Equipa da Farmácia", "Administrador", "Enfermeiro de Referência
 
             conn.close()
 
-    # ABA 4: ACOMPANHAMENTO DE CONTAGENS DOMICILIARES COM NOTIFICAÇÃO VIA WHATSAPP
+    # ABA 4: ACOMPANHAMENTO DE CONTAGENS DOMICILIARES PARA FARMÁCIA E ENFERMEIROS
     if "🏡 4. Contagens Domiciliares" in abas_nomes:
         idx = abas_nomes.index("🏡 4. Contagens Domiciliares")
         with abas[idx]:
             st.header("🏡 Acompanhamento do Estoque nos Domicílios (Famílias)")
-            st.write("Consulte as contagens enviadas pelos cuidadores e envie notificações via WhatsApp diretamente.")
+            st.write("Consulte as contagens enviadas pelos cuidadores para planejar entregas ou organizar a compra de materiais.")
 
             conn = get_connection()
             df_todas_contagens = pd.read_sql_query("SELECT * FROM contagem_domicilio ORDER BY id DESC", conn)
@@ -469,52 +477,8 @@ if perfil in ["Equipa da Farmácia", "Administrador", "Enfermeiro de Referência
                     df_cont_filtrado = df_cont_filtrado[df_cont_filtrado["enfermeiro_referencia"] == filtro_enf]
 
                 st.write(f"Exibindo **{len(df_cont_filtrado)}** registro(s):")
-                
-                # Exibição detalhada item a item com botão interativo de WhatsApp
-                for idx_row, row in df_cont_filtrado.iterrows():
-                    # Busca o telefone do paciente
-                    tel_pac_encontrado = ""
-                    if not df_pacientes.empty and row["paciente_nome"] in df_pacientes["nome_paciente"].values:
-                        tel_pac_encontrado = df_pacientes[df_pacientes["nome_paciente"] == row["paciente_nome"]]["telefone"].values[0]
+                st.dataframe(df_cont_filtrado, use_container_width=True)
 
-                    with st.expander(f"📌 {row['paciente_nome']} - {row['produto_nome']} (Qtd no Domicílio: {row['quantidade_domicilio']})"):
-                        st.write(f"**Data/Hora do Registro:** {row['data_hora']}")
-                        st.write(f"**Enfermeira de Referência:** {row['enfermeiro_referencia']}")
-                        st.write(f"**Responsável que Contou:** {row['responsavel_contagem']}")
-                        st.write(f"**Observação:** {row['observacao']}")
-
-                        st.divider()
-                        
-                        # Campo de telefone editável e montagem do link do WhatsApp
-                        tel_input = st.text_input("WhatsApp do Responsável / Paciente (com DDD):", value=tel_pac_encontrado, key=f"tel_dom_{row['id']}")
-                        
-                        mensagem_wa = f"""*Acompanhamento de Estoque Domiciliar - Farmácia* 🏥
-
-Olá! Recebemos o registro de contagem do paciente *{row['paciente_nome']}*:
-
-- *Item/Material:* {row['produto_nome']}
-- *Quantidade em casa:* {row['quantidade_domicilio']}
-- *Responsável:* {row['responsavel_contagem']}
-- *Observação:* {row['observacao']}
-
-Estamos acompanhando a necessidade de reposição/envio junto à Enfermeira responsável *{row['enfermeiro_referencia']}*.
-Agradecemos a colaboração!"""
-
-                        msg_encoded = urllib.parse.quote(mensagem_wa)
-                        link_whatsapp = f"https://wa.me/{tel_input.strip()}?text={msg_encoded}"
-
-                        if tel_input.strip():
-                            st.markdown(f'''
-                                <a href="{link_whatsapp}" target="_blank">
-                                    <button style="background-color: #25D366; color: white; padding: 10px 18px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
-                                        📱 Enviar Confirmação via WhatsApp
-                                    </button>
-                                </a>
-                            ''', unsafe_allow_html=True)
-                        else:
-                            st.warning("⚠️ Insira o número do telefone acima para ativar o botão do WhatsApp.")
-
-                st.divider()
                 csv_domicilio = df_cont_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
                 st.download_button("📥 Baixar Relatório Domiciliar (Excel/CSV)", data=csv_domicilio, file_name="contagens_domiciliares.csv", mime="text/csv")
 
