@@ -88,11 +88,11 @@ if not st.session_state["autenticado"]:
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES (Em Ordem Alfabética de A a Z)
 # ==============================================================================
-PACIENTES_BASE = {
+PACIENTES_BASE = {anonimizar os nomes dos pacientes}
     "A. B. C. S.": "PUL",
-    "Ana Vitoria Soares Silva": "PCP",
-    "Antenor Oliveira Matos": "PUL",
-    "Bruno Rafael da Silva": "PUL",
+    "A. V. S. S.": "PCP",
+    "A. O. M.": "PUL",
+    "B. R. S.": "PUL",
     "Catarina de Carvalho Jambeiro": "PUL",
     "Davi Lucas Ribeiro de Souza Lino": "PUL",
     "Enzo Gabriel Borges Amorim": "PUL",
@@ -213,7 +213,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                     INSERT INTO ocorrencias (
                         data_registro, paciente, programa, tipo_alteracao, profissionais,
                         ja_escala, ja_passou, motivo, datas_plantao, observacoes,
-                        telefone_familia, status_notificacao, data_notificacao, atendente_notificacao
+                    status_notificacao, data_notificacao, atendente_notificacao
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     data_atual, nome_paciente_final, programa, tipos_str, profissionais,
