@@ -221,7 +221,6 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                     "Pendente", "Não notificado", "Pendente"
                 ))
             conn.commit()
-                
                 st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
 
                 # Mensagem encaminhada para a Recepção da Unidade
