@@ -88,7 +88,7 @@ if not st.session_state["autenticado"]:
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES (Em Ordem Alfabética de A a Z)
 # ==============================================================================
-PACIENTES_BASE = {anonimizar os nomes dos pacientes
+PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
     "A. V. S. S.": "PCP",
     "A. O. M.": "PUL",
