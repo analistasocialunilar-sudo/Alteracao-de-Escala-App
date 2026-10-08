@@ -9,8 +9,8 @@ from datetime import datetime
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 
-# Conexão ao banco de dados SQLite 'escala_hospitalar.db'
-conn = sqlite3.connect("escala_hospitalar.db", check_same_thread=False)
+# Alterado para 'v2' para criar a tabela com a estrutura atualizada corretamente
+conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
 cursor = conn.cursor()
 
 # Tabela de ocorrências atualizada com todas as colunas necessárias
@@ -44,7 +44,6 @@ st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="�
 def obter_iniciais(nome):
     if not nome or nome == "➕ Cadastrar Novo Paciente":
         return nome
-    # Se o nome já estiver abreviado (ex: "A. B. C. S."), retorna ele mesmo
     if "." in nome and len(nome.split()) <= 6 and all(len(p) <= 2 for p in nome.split() if p != "de" and p != "da"):
         return nome
     
@@ -186,7 +185,6 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
         else:
             nome_paciente_final = paciente_selecionado
 
-        # O nome completo é salvo no banco, mas geramos as iniciais para visualização e WhatsApp
         paciente_iniciais = obter_iniciais(nome_paciente_final)
 
         with st.form("form_terceirizada"):
@@ -244,7 +242,6 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 conn.commit()
                 st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
 
-                # Mensagem encaminhada para a Recepção da Unidade com as iniciais do paciente
                 msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
 *Paciente:* {paciente_iniciais}
@@ -304,7 +301,6 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                         placeholder="Ex: 5587999998888"
                     )
 
-                    # MODELO HUMANIZADO E CORDIAL DE MENSAGEM (Com iniciais do paciente)
                     texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
 
 Olá, boa tarde!
@@ -347,7 +343,7 @@ Agradecemos sua atenção e colaboração!"""
                     
                     with col_btn:
                         st.write("")
-                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']})"):
+                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
                             if not nome_atendente.strip():
                                 st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
                             else:
@@ -400,14 +396,12 @@ if "📊 3. Histórico e Relatórios" in abas_disponiveis:
             if filtro_programa != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
 
-            # Cria cópia para exibição com as iniciais substituídas, preservando o banco intacto
             df_exibicao = df_filtrado.copy()
             df_exibicao['paciente'] = df_exibicao['paciente'].apply(obter_iniciais)
 
             st.write(f"Exibindo **{len(df_exibicao)}** registro(s) encontrado(s):")
             st.dataframe(df_exibicao, use_container_width=True)
 
-            # Exportação configurada com ';' e utf-8-sig para abertura perfeita no Excel
             csv_organizado = df_exibicao.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
             
             st.download_button(
