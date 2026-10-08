@@ -7,14 +7,13 @@ from datetime import datetime
 # ==============================================================================
 # 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
 # ==============================================================================
-# DEFINIÇÃO DO NÚMERO DO WHATSAPP DA RECEPÇÃO DA UNIDADE (+55 87 9112-8133)
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 
 # Conexão ao banco de dados SQLite 'escala_hospitalar.db'
 conn = sqlite3.connect("escala_hospitalar.db", check_same_thread=False)
 cursor = conn.cursor()
 
-# Tabela de ocorrências
+# Tabela de ocorrências atualizada com todas as colunas necessárias
 cursor.execute('''
     CREATE TABLE IF NOT EXISTS ocorrencias (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,6 +37,25 @@ conn.commit()
 
 # Configuração da página no Streamlit
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
+
+# ==============================================================================
+# FUNÇÃO PARA CONVERTER NOME EM APENAS INICIAIS
+# ==============================================================================
+def obter_iniciais(nome):
+    if not nome or nome == "➕ Cadastrar Novo Paciente":
+        return nome
+    # Se o nome já estiver abreviado (ex: "A. B. C. S."), retorna ele mesmo
+    if "." in nome and len(nome.split()) <= 6 and all(len(p) <= 2 for p in nome.split() if p != "de" and p != "da"):
+        return nome
+    
+    partes = nome.split()
+    iniciais = []
+    ignorar = {"de", "da", "do", "das", "dos", "e"}
+    for p in partes:
+        p_limpo = p.strip(".,")
+        if p_limpo.lower() not in ignorar and p_limpo:
+            iniciais.append(p_limpo[0].upper() + ".")
+    return " ".join(iniciais)
 
 # ==============================================================================
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN (Segurança de Acesso)
@@ -168,6 +186,9 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
         else:
             nome_paciente_final = paciente_selecionado
 
+        # O nome completo é salvo no banco, mas geramos as iniciais para visualização e WhatsApp
+        paciente_iniciais = obter_iniciais(nome_paciente_final)
+
         with st.form("form_terceirizada"):
             col1, col2 = st.columns(2)
             
@@ -213,20 +234,20 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                     INSERT INTO ocorrencias (
                         data_registro, paciente, programa, tipo_alteracao, profissionais,
                         ja_escala, ja_passou, motivo, datas_plantao, observacoes,
-                    status_notificacao, data_notificacao, atendente_notificacao
+                        telefone_familia, status_notificacao, data_notificacao, atendente_notificacao
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     data_atual, nome_paciente_final, programa, tipos_str, profissionais,
                     ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
-                    "Pendente", "Não notificado", "Pendente"
+                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
                 ))
-            conn.commit()
+                conn.commit()
                 st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
 
-                # Mensagem encaminhada para a Recepção da Unidade
+                # Mensagem encaminhada para a Recepção da Unidade com as iniciais do paciente
                 msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
-*Paciente:* {nome_paciente_final}
+*Paciente:* {paciente_iniciais}
 *Programa:* {programa}
 *Tipo de Alteração:* {tipos_str}
 
@@ -266,7 +287,8 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
             st.info("🎉 Nenhuma notificação pendente no momento.")
         else:
             for idx, row in df_pendentes.iterrows():
-                with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
+                paciente_iniciais = obter_iniciais(row['paciente'])
+                with st.expander(f"📌 Registro #{row['id']} - Paciente: {paciente_iniciais} ({row['programa']})"):
                     st.write(f"**Data de Registro:** {row['data_registro']}")
                     st.write(f"**Tipo de Alteração:** {row['tipo_alteracao']}")
                     st.write(f"**Profissionais:** {row['profissionais']}")
@@ -282,12 +304,12 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                         placeholder="Ex: 5587999998888"
                     )
 
-                    # MODELO HUMANIZADO E CORDIAL DE MENSAGEM
+                    # MODELO HUMANIZADO E CORDIAL DE MENSAGEM (Com iniciais do paciente)
                     texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
 
 Olá, boa tarde!
 
-A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
+A fim de garantir a assistência do paciente *{paciente_iniciais}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
 
 {row['profissionais']}
 *Data:* {row['datas_plantao']}
@@ -325,7 +347,7 @@ Agradecemos sua atenção e colaboração!"""
                     
                     with col_btn:
                         st.write("")
-                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
+                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']})"):
                             if not nome_atendente.strip():
                                 st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
                             else:
@@ -378,11 +400,15 @@ if "📊 3. Histórico e Relatórios" in abas_disponiveis:
             if filtro_programa != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
 
-            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
-            st.dataframe(df_filtrado, use_container_width=True)
+            # Cria cópia para exibição com as iniciais substituídas, preservando o banco intacto
+            df_exibicao = df_filtrado.copy()
+            df_exibicao['paciente'] = df_exibicao['paciente'].apply(obter_iniciais)
+
+            st.write(f"Exibindo **{len(df_exibicao)}** registro(s) encontrado(s):")
+            st.dataframe(df_exibicao, use_container_width=True)
 
             # Exportação configurada com ';' e utf-8-sig para abertura perfeita no Excel
-            csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
+            csv_organizado = df_exibicao.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
             
             st.download_button(
                 label="📥 Baixar Relatório Filtrado (Excel / CSV Organizado)",
