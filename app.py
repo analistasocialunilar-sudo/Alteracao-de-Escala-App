@@ -65,9 +65,9 @@ def obter_iniciais(nome):
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
 USUARIOS = {
-    "terceirizada": {"senha": "123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
-    "unidade": {"senha": "456", "perfil": "Unidade de Saúde", "nome": "Equipa da Unidade"},
-    "admin": {"senha": "admin", "perfil": "Administrador", "nome": "Gestor do Sistema"}
+    "terceirizada": {"senha": "terceirizada@123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
+    "unidade": {"senha": "un1m3d210", "perfil": "Unidade de Saúde", "nome": "Equipa da Unidade"},
+    "admin": {"senha": "adu@210escalas", "perfil": "Administrador", "nome": "Gestor do Sistema"}
 }
 
 if "autenticado" not in st.session_state:
@@ -103,9 +103,7 @@ if not st.session_state["autenticado"]:
         if btn_login:
             realizar_login(user_input, pass_input)
             
-    st.info("💡 **Dica de Acesso Rápido para Testes:**\n- **Terceirizada:** Utilizador `terceirizada` | Palavra-passe `123`\n- **Unidade de Saúde:** Utilizador `unidade` | Palavra-passe `456`\n- **Administrador:** Utilizador `admin` | Palavra-passe `admin`")
-    st.stop()
-
+  
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES (Exibindo com Iniciais na Seleção)
 # ==============================================================================
