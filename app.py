@@ -77,7 +77,6 @@ if not st.session_state["autenticado"]:
         if btn_login:
             realizar_login(user_input, pass_input)
             
-    st.info("💡 **Dica de Acesso Rápido...).
 
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES (Lista de Iniciais Personalizada)
