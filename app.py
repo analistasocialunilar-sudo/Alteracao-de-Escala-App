@@ -5,7 +5,73 @@ import urllib.parse
 from datetime import datetime
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
+# 1. CONFIGURAÇÃO DA PÁGINA
+# ==============================================================================
+st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
+
+# ==============================================================================
+# 2. DEFINIÇÃO DE UTILIZADORES E PALAVRAS-PASSE
+# ==============================================================================
+# Altere as palavras-passe abaixo para as senhas definitivas da sua unidade:
+USUARIOS = {
+    "terceirizada": {
+        "senha": "terceirizada@123", 
+        "perfil": "Terceirizada", 
+        "nome": "Empresa Terceirizada"
+    },
+    "unidade": {
+        "senha": "un1m3d210", 
+        "perfil": "Unidade de Saúde", 
+        "nome": "Equipa da Unidade"
+    },
+    "admin": {
+        "senha": "adu@210escalas", 
+        "perfil": "Administrador", 
+        "nome": "Gestor do Sistema"
+    }
+}
+
+# ==============================================================================
+# 3. SISTEMA DE AUTENTICAÇÃO E TELA DE LOGIN (BLOQUEIO DE ACESSO)
+# ==============================================================================
+if "autenticado" not in st.session_state:
+    st.session_state["autenticado"] = False
+    st.session_state["usuario_nome"] = ""
+    st.session_state["usuario_perfil"] = ""
+
+def realizar_login(usuario, senha):
+    if usuario in USUARIOS and USUARIOS[usuario]["senha"] == senha:
+        st.session_state["autenticado"] = True
+        st.session_state["usuario_nome"] = USUARIOS[usuario]["nome"]
+        st.session_state["usuario_perfil"] = USUARIOS[usuario]["perfil"]
+        st.success("Login efetuado com sucesso!")
+        st.rerun()
+    else:
+        st.error("Utilizador ou palavra-passe incorretos.")
+
+def realizar_logout():
+    st.session_state["autenticado"] = False
+    st.session_state["usuario_nome"] = ""
+    st.session_state["usuario_perfil"] = ""
+    st.rerun()
+
+# SE NÃO ESTIVER AUTENTICADO: Exibe apenas a tela de login e PARAR o script aqui.
+if not st.session_state["autenticado"]:
+    st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
+    st.subheader("🔐 Acesso Restrito - Faça o seu Login")
+    
+    with st.form("form_login"):
+        user_input = st.text_input("Utilizador").strip().lower()
+        pass_input = st.text_input("Palavra-passe", type="password")
+        btn_login = st.form_submit_button("Entrar no Sistema")
+        
+        if btn_login:
+            realizar_login(user_input, pass_input)
+            
+    st.stop()  # <--- Este comando garante que NADA mais abaixo será executado sem login
+
+# ==============================================================================
+# 4. CONEXÃO AO BANCO DE DADOS (Executado somente após o Login)
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 
@@ -33,53 +99,8 @@ cursor.execute('''
 ''')
 conn.commit()
 
-st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
-
 # ==============================================================================
-# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
-# ==============================================================================
-USUARIOS = {
-   "terceirizada": {"senha": "terceirizada@123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
- "unidade": {"senha": "un1m3d210", "perfil": "Unidade de Saúde", "nome": "Equipa da Unidade"},
- "admin": {"senha": "adu@210escalas", "perfil": "Administrador", "nome": "Gestor do Sistema"}
-}
-
-if "autenticado" not in st.session_state:
-    st.session_state["autenticado"] = False
-    st.session_state["usuario_nome"] = ""
-    st.session_state["usuario_perfil"] = ""
-
-def realizar_login(usuario, senha):
-    if usuario in USUARIOS and USUARIOS[usuario]["senha"] == senha:
-        st.session_state["autenticado"] = True
-        st.session_state["usuario_nome"] = USUARIOS[usuario]["nome"]
-        st.session_state["usuario_perfil"] = USUARIOS[usuario]["perfil"]
-        st.success("Login efetuado com sucesso!")
-        st.rerun()
-    else:
-        st.error("Utilizador ou palavra-passe incorretos.")
-
-def realizar_logout():
-    st.session_state["autenticado"] = False
-    st.session_state["usuario_nome"] = ""
-    st.session_state["usuario_perfil"] = ""
-    st.rerun()
-
-if not st.session_state["autenticado"]:
-    st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
-    st.subheader("🔐 Acesso Restrito - Faça o seu Login")
-    
-    with st.form("form_login"):
-        user_input = st.text_input("Utilizador").strip().lower()
-        pass_input = st.text_input("Palavra-passe", type="password")
-        btn_login = st.form_submit_button("Entrar no Sistema")
-        
-        if btn_login:
-            realizar_login(user_input, pass_input)
-            
-
-# ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES (Lista de Iniciais Personalizada)
+# 5. BASE DE DADOS DE PACIENTES
 # ==============================================================================
 PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
@@ -114,7 +135,7 @@ PACIENTES_BASE = {
 lista_nomes_ordenada = list(PACIENTES_BASE.keys())
 
 # ==============================================================================
-# 4. CABEÇALHO DO SISTEMA E NAVEGAÇÃO DE PERFIS
+# 6. CABEÇALHO DO SISTEMA E NAVEGAÇÃO
 # ==============================================================================
 col_tit, col_user = st.columns([3, 1])
 with col_tit:
@@ -210,173 +231,4 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     data_atual, nome_paciente_final, programa, tipos_str, profissionais,
-                    ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
-                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
-                ))
-                conn.commit()
-                st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
-
-                msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
-
-*Paciente:* {nome_paciente_final}
-*Programa:* {programa}
-*Tipo de Alteração:* {tipos_str}
-
-*Profissionais:*
-{profissionais}
-
-*Motivo:* {motivo}
-*Data / Período:* {datas_plantao}
-*Observações:* {observacoes}
-
-_Por favor, realizar a notificação da família no sistema._"""
-
-                msg_encoded = urllib.parse.quote(msg_recepcao)
-                link_recepcao = f"https://wa.me/{TELEFONE_RECEPCAO_UNIDADE}?text={msg_encoded}"
-
-                st.markdown("### 📲 Próximo Passo: Enviar para a Recepção da Unidade")
-                st.markdown(f'''
-                    <a href="{link_recepcao}" target="_blank">
-                        <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">
-                            📲 Enviar Informe via WhatsApp (+55 87 9112-8133)
-                        </button>
-                    </a>
-                ''', unsafe_allow_html=True)
-
-# ==============================================================================
-# ABA 2: PAINEL DE NOTIFICAÇÃO
-# ==============================================================================
-if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
-    idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
-    with abas[idx_aba2]:
-        st.header("📥 Ocorrências Pendentes de Notificação")
-        st.write("Abaixo estão as alterações cadastradas aguardando contato com a família.")
-
-        df_pendentes = pd.read_sql_query("SELECT * FROM ocorrencias WHERE status_notificacao = 'Pendente'", conn)
-
-        if df_pendentes.empty:
-            st.info("🎉 Nenhuma notificação pendente no momento.")
-        else:
-            for idx, row in df_pendentes.iterrows():
-                with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
-                    st.write(f"**Data de Registro:** {row['data_registro']}")
-                    st.write(f"**Tipo de Alteração:** {row['tipo_alteracao']}")
-                    st.write(f"**Profissionais:** {row['profissionais']}")
-                    st.write(f"**Motivo:** {row['motivo']}")
-                    st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
-                    st.write(f"**Observações:** {row['observacoes']}")
-                    
-                    tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
-                    telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
-                        value=tel_atual, 
-                        key=f"tel_{row['id']}", 
-                        placeholder="Ex: 5587999998888"
-                    )
-
-                    texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
-
-Olá, boa tarde!
-
-A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
-
-{row['profissionais']}
-*Data:* {row['datas_plantao']}
-
-Favor, confirmar o recebimento e ciência deste comunicado.
-
-Agradecemos sua atenção e colaboração!"""
-
-                    texto_encoded = urllib.parse.quote(texto_whatsapp)
-                    num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
-                    link_wa = f"https://wa.me/{num_link}?text={texto_encoded}"
-
-                    st.markdown("---")
-                    col_wa, col_atendente, col_btn = st.columns([1, 1.5, 1.5])
-                    
-                    with col_wa:
-                        if telefone_editado.strip():
-                            st.markdown(f'''
-                                <a href="{link_wa}" target="_blank">
-                                    <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
-                                        📱 Abrir WhatsApp
-                                    </button>
-                                </a>
-                            ''', unsafe_allow_html=True)
-                        else:
-                            st.warning("⚠️ Insira o número do telefone acima para ativar o botão do WhatsApp.")
-                    
-                    with col_atendente:
-                        nome_atendente = st.text_input(
-                            f"Nome do Atendente/Servidor *", 
-                            value=st.session_state["usuario_nome"] if st.session_state["usuario_nome"] != "Equipa da Unidade" else "",
-                            key=f"atendente_{row['id']}",
-                            placeholder="Digite o seu nome"
-                        )
-                    
-                    with col_btn:
-                        st.write("")
-                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
-                            if not nome_atendente.strip():
-                                st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
-                            else:
-                                data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
-                                cursor.execute('''
-                                    UPDATE ocorrencias 
-                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
-                                    WHERE id = ?
-                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
-                                conn.commit()
-                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
-                                st.rerun()
-
-# ==============================================================================
-# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS
-# ==============================================================================
-if "📊 3. Histórico e Relatórios" in abas_disponiveis:
-    idx_aba3 = abas_disponiveis.index("📊 3. Histórico e Relatórios")
-    with abas[idx_aba3]:
-        st.header("📊 Histórico Completo de Ocorrências e Relatórios")
-        
-        df_todos = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn)
-
-        if df_todos.empty:
-            st.warning("Nenhum registro encontrado no banco de dados.")
-        else:
-            st.subheader("🔍 Filtros de Pesquisa")
-            f_col1, f_col2, f_col3 = st.columns(3)
-            
-            with f_col1:
-                filtro_status = st.selectbox("Status de Notificação:", ["Todos", "Pendente", "Concluído"])
-            
-            with f_col2:
-                lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].unique()))
-                filtro_paciente = st.selectbox("Filtrar por Paciente:", lista_pacientes_filtro)
-                
-            with f_col3:
-                lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
-                filtro_programa = st.selectbox("Filtrar por Programa:", lista_programas_filtro)
-
-            df_filtrado = df_todos.copy()
-
-            if filtro_status != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
-                
-            if filtro_paciente != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["paciente"] == filtro_paciente]
-                
-            if filtro_programa != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
-
-            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
-            st.dataframe(df_filtrado, use_container_width=True)
-
-            csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
-            
-            st.download_button(
-                label="📥 Baixar Relatório Filtrado (Excel / CSV Organizado)",
-                data=csv_organizado,
-                file_name=f"relatorio_escalas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
-                mime="text/csv"
-            )
+                    ja_da_escala, ja_passou_
