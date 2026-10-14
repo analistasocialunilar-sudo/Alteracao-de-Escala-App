@@ -259,16 +259,16 @@ _Por favor, realizar a notificação da família no sistema._"""
                     st.markdown(f'''
                         <a href="{link_recepcao}" target="_blank">
                             <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
-                                📲 Enviar p/ Recepção (+55 87 9112-8133)
+                                📲 Enviar p/ Acolhimento ADU
                             </button>
                         </a>
                     ''', unsafe_allow_html=True)
                     
                 with col_btn2:
                     st.markdown(f'''
-                        <a href="{link_acolhimento}" target="_blank">
+                        <a href="{link_Serviço Social ADU}" target="_blank">
                             <button style="background-color: #128C7E; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
-                                🏥 Enviar p/ Acolhimento
+                                🏥 Enviar p/ Serviço Social
                             </button>
                         </a>
                     ''', unsafe_allow_html=True)
