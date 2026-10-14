@@ -9,6 +9,7 @@ from datetime import datetime
 # ==============================================================================
 # DEFINIÇÃO DOS NÚMEROS DE TELEFONE DE NOTIFICAÇÃO
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
+TELEFONE_SERVIÇO_SOCIAL = "5587988143263"  # Substitua pelo número exato do Acolhimento
 
 # Conexão ao banco de dados SQLite 'escala_hospitalar_v2.db'
 conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
