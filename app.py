@@ -265,7 +265,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                     st.markdown(f'''
                         <a href="{link_recepcao}" target="_blank">
                             <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
-                                📲 Enviar p/ Recepção (+55 87 9112-8133)
+                                📲 Enviar p/ Acolhimento 
                             </button>
                         </a>
                     ''', unsafe_allow_html=True)
