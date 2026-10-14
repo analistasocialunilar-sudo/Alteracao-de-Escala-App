@@ -313,3 +313,150 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
 
         if df_pendentes.empty:
             st.info("🎉 Nenhuma notificação pendente no momento.")
+        else:
+            for idx, row in df_pendentes.iterrows():
+                with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
+                    st.write(f"**Data de Registro:** {row['data_registro']}")
+                    st.write(f"**Mês de Referência:** {row.get('mes_referencia', 'Não informado')}")
+                    st.write(f"**Tipo de Alteração:** {row['tipo_alteracao']}")
+                    st.write(f"**Profissionais:** {row['profissionais']}")
+                    st.write(f"**Motivo:** {row['motivo']}")
+                    st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
+                    st.write(f"**Observações:** {row['observacoes']}")
+                    
+                    tel_atual = "" if str(row['telefone_familia']) == "Não informado" else str(row['telefone_familia'])
+                    telefone_editado = st.text_input(
+                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
+                        value=str(tel_atual), 
+                        key=f"tel_{row['id']}", 
+                        placeholder="Ex: 5587999998888"
+                    )
+
+                    texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
+
+Olá, boa tarde!
+
+A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
+
+{row['profissionais']}
+*Data:* {row['datas_plantao']}
+
+Favor, confirmar o recebimento e ciência deste comunicado.
+
+Agradecemos sua atenção e colaboração!"""
+
+                    texto_encoded = urllib.parse.quote(texto_whatsapp)
+                    num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
+                    link_wa = f"https://wa.me/{num_link}?text={texto_encoded}"
+
+                    st.markdown("---")
+                    col_wa, col_atendente, col_btn = st.columns([1, 1.5, 1.5])
+                    
+                    with col_wa:
+                        if telefone_editado.strip():
+                            st.markdown(f'''
+                                <a href="{link_wa}" target="_blank">
+                                    <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                                        📱 Abrir WhatsApp
+                                    </button>
+                                </a>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            st.warning("⚠️ Insira o número do telefone acima para ativar o botão do WhatsApp.")
+                    
+                    with col_atendente:
+                        nome_atendente = st.text_input(
+                            f"Nome do Atendente/Servidor *", 
+                            value=st.session_state["usuario_nome"] if st.session_state["usuario_nome"] != "Equipa da Unidade" else "",
+                            key=f"atendente_{row['id']}",
+                            placeholder="Digite o seu nome"
+                        )
+                    
+                    with col_btn:
+                        st.write("")
+                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
+                            if not nome_atendente.strip():
+                                st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
+                            else:
+                                data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
+                                
+                                # Atualiza no Google Sheets via gspread encontrando a linha correspondente pelo ID
+                                aba_sheets = obter_conexao_gspread()
+                                celula = aba_sheets.find(str(row["id"]))
+                                
+                                if celula:
+                                    linha_num = celula.row
+                                    # Atualiza as colunas: telefone_familia (Col 14), status_notificacao (Col 15), data_notificacao (Col 16), atendente_notificacao (Col 17)
+                                    aba_sheets.update_cell(linha_num, 14, tel_final)
+                                    aba_sheets.update_cell(linha_num, 15, "Concluído")
+                                    aba_sheets.update_cell(linha_num, 16, data_notif)
+                                    aba_sheets.update_cell(linha_num, 17, nome_atendente.strip())
+                                    
+                                    st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()} no Google Sheets!")
+                                    st.rerun()
+
+# ==============================================================================
+# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS MENSAIS E ANUAIS
+# ==============================================================================
+if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "📊 3. Histórico e Relatórios" in abas_disponiveis:
+    idx_aba3 = 1 if perfil_atual == "Unidade de Saúde" else 2
+    with abas[idx_aba3]:
+        st.header("📊 Histórico Completo de Ocorrências e Relatórios Mensais/Anuais")
+        
+        df_todos = carregar_dados()
+
+        if df_todos.empty:
+            st.warning("Nenhum registro encontrado no Google Sheets.")
+        else:
+            st.subheader("🔍 Filtros de Pesquisa por Mês, Ano e Categoria")
+            f_col1, f_col2, f_col3, f_col4 = st.columns(4)
+            
+            anos_unicos = ["Todos"] + sorted(list(df_todos['ano_referencia'].astype(str).unique()), reverse=True)
+            with f_col1:
+                filtro_ano = st.selectbox("📅 Selecione o Ano:", anos_unicos)
+
+            meses_unicos = ["Todos"] + sorted(list(df_todos['mes_referencia'].astype(str).unique()), reverse=True)
+            with f_col2:
+                filtro_mes = st.selectbox("🗓️ Selecione o Mês/Ano:", meses_unicos)
+
+            with f_col3:
+                filtro_status = st.selectbox("Status de Notificação:", ["Todos", "Pendente", "Concluído"])
+            
+            with f_col4:
+                lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].astype(str).unique()))
+                filtro_paciente = st.selectbox("Filtrar por Paciente:", lista_pacientes_filtro)
+
+            df_filtrado = df_todos.copy()
+
+            if filtro_ano != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["ano_referencia"].astype(str) == filtro_ano]
+
+            if filtro_mes != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["mes_referencia"].astype(str) == filtro_mes]
+
+            if filtro_status != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
+                
+            if filtro_paciente != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["paciente"].astype(str) == filtro_paciente]
+
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Total de Ocorrências no Período", len(df_filtrado))
+            col_m2.metric("Notificações Concluídas", len(df_filtrado[df_filtrado["status_notificacao"] == "Concluído"]))
+            col_m3.metric("Pendentes de Contato", len(df_filtrado[df_filtrado["status_notificacao"] == "Pendente"]))
+
+            st.divider()
+            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
+            st.dataframe(df_filtrado, use_container_width=True)
+
+            csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
+            
+            nome_arquivo = f"relatorio_escalas_{filtro_mes.replace('/', '_') if filtro_mes != 'Todos' else filtro_ano}.csv"
+            
+            st.download_button(
+                label=f"📥 Baixar Relatório Filtrado em Excel / CSV Organizado",
+                data=csv_organizado,
+                file_name=nome_arquivo,
+                mime="text/csv"
+            )
