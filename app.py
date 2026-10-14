@@ -1,42 +1,40 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import urllib.parse
 from datetime import datetime
+from streamlit_gsheets import GSheetsConnection
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
+# 1. CONFIGURAÇÃO DA PÁGINA E CONEXÃO COM GOOGLE SHEETS
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
-
-conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
-cursor = conn.cursor()
-
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS ocorrencias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_registro TEXT,
-        paciente TEXT,
-        programa TEXT,
-        tipo_alteracao TEXT,
-        profissionais TEXT,
-        ja_escala TEXT,
-        ja_passou TEXT,
-        motivo TEXT,
-        datas_plantao TEXT,
-        observacoes TEXT,
-        telefone_familia TEXT,
-        status_notificacao TEXT,
-        data_notificacao TEXT,
-        atendente_notificacao TEXT
-    )
-''')
-conn.commit()
+TELEFONE_ACOLHIMENTO = "558791128133"
 
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
 
+# Conexão nativa do Streamlit com a planilha do Google Sheets
+conn = st.connection("gsheets", type=GSheetsConnection)
+
+def carregar_dados_google_sheets():
+    """
+    Função para ler todas as ocorrências gravadas permanentemente no Google Sheets.
+    Garante que os dados estejam sempre atualizados sem perda de histórico.
+    """
+    try:
+        df = conn.read(worksheet="Ocorrencias", ttl="0s")
+        return df
+    except Exception:
+        # Estrutura padrão da tabela caso a planilha esteja vazia/inicial
+        colunas = [
+            "id", "data_registro", "mes_referencia", "ano_referencia", "paciente", 
+            "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou", 
+            "motivo", "datas_plantao", "observacoes", "telefone_familia", 
+            "status_notificacao", "data_notificacao", "atendente_notificacao"
+        ]
+        return pd.DataFrame(columns=colunas)
+
 # ==============================================================================
-# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
+# 2. SISTEMA DE AUTENTICAÇÃO E LOGIN (Segurança de Acesso)
 # ==============================================================================
 USUARIOS = {
     "terceirizada": {"senha": "terceirizada@123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
@@ -50,6 +48,7 @@ if "autenticado" not in st.session_state:
     st.session_state["usuario_perfil"] = ""
 
 def realizar_login(usuario, senha):
+    """Valida o utilizador e a palavra-passe para permitir o acesso."""
     if usuario in USUARIOS and USUARIOS[usuario]["senha"] == senha:
         st.session_state["autenticado"] = True
         st.session_state["usuario_nome"] = USUARIOS[usuario]["nome"]
@@ -60,11 +59,13 @@ def realizar_login(usuario, senha):
         st.error("Utilizador ou palavra-passe incorretos.")
 
 def realizar_logout():
+    """Encerra a sessão atual do utilizador."""
     st.session_state["autenticado"] = False
     st.session_state["usuario_nome"] = ""
     st.session_state["usuario_perfil"] = ""
     st.rerun()
 
+# Formulário de Autenticação
 if not st.session_state["autenticado"]:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
     st.subheader("🔐 Acesso Restrito - Faça o seu Login")
@@ -77,10 +78,10 @@ if not st.session_state["autenticado"]:
         if btn_login:
             realizar_login(user_input, pass_input)
             
-    st.stop()  # <--- Este comando garante que NADA mais abaixo será executado sem login)
+    st.stop()  # Bloqueia a execução do restante código sem login
 
 # ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES (Lista de Iniciais Personalizada)
+# 3. BASE DE DADOS DE PACIENTES (Lista de Iniciais)
 # ==============================================================================
 PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
@@ -115,12 +116,12 @@ PACIENTES_BASE = {
 lista_nomes_ordenada = list(PACIENTES_BASE.keys())
 
 # ==============================================================================
-# 4. CABEÇALHO DO SISTEMA E NAVEGAÇÃO DE PERFIS
+# 4. CABEÇALHO E MÓDULO DE NAVEGAÇÃO
 # ==============================================================================
 col_tit, col_user = st.columns([3, 1])
 with col_tit:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
-    st.caption("Atenção Domiciliar - Registro de Alterações, Notificações e Histórico")
+    st.caption("Atenção Domiciliar - Registo Permanente no Google Sheets e Controlo Mensal/Anual")
 
 with col_user:
     st.write(f"👤 **{st.session_state['usuario_nome']}**")
@@ -135,24 +136,24 @@ perfil_atual = st.session_state["usuario_perfil"]
 if perfil_atual == "Terceirizada":
     abas_disponiveis = ["📝 1. Registrar Alteração (Terceirizada)"]
 elif perfil_atual == "Unidade de Saúde":
-    abas_disponiveis = ["📲 2. Notificar Família (Unidade de Saúde)", "📊 3. Histórico e Relatórios"]
+    abas_disponiveis = ["📲 2. Notificar Família (Unidade de Saúde)", "📊 3. Histórico e Relatórios Mensais/Anuais"]
 else:
     abas_disponiveis = [
         "📝 1. Registrar Alteração (Terceirizada)", 
         "📲 2. Notificar Família (Unidade de Saúde)", 
-        "📊 3. Histórico e Relatórios"
+        "📊 3. Histórico e Relatórios Mensais/Anuais"
     ]
 
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA TERCEIRIZADA
+# ABA 1: REGISTO PELA TERCEIRIZADA (Gravação na Nuvem)
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
     with abas[idx_aba1]:
         st.header("📋 Registrar Informe de Alteração de Escala")
-        st.write("Selecione o paciente na lista suspensa para registrar a ocorrência.")
+        st.write("Selecione o paciente na lista suspensa para salvar a ocorrência permanentemente no Google Sheets.")
 
         paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada)
         programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
@@ -168,7 +169,6 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
             with col1:
                 opcoes_programa = ["PUL (Unimed Lar)", "PCP (Cuidados Paliativos)", "Outros"]
                 indice_padrao = 1 if programa_sugerido == "PCP" else 0
-                
                 programa = st.selectbox("Programa *", opcoes_programa, index=indice_padrao)
                 
                 tipo_alteracao = st.multiselect(
@@ -193,29 +193,47 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
-            btn_enviar = st.form_submit_button("💾 Salvar e Enviar para a Unidade")
+            btn_enviar = st.form_submit_button("💾 Salvar no Google Sheets e Enviar para a Unidade")
 
         if btn_enviar:
             if not nome_paciente_final:
                 st.error("⚠️ O campo 'Paciente' é obrigatório.")
             else:
-                data_atual = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                agora = datetime.now()
+                data_atual = agora.strftime("%Y-%m-%d %H:%M:%S")
+                mes_ref = agora.strftime("%m/%Y")
+                ano_ref = agora.strftime("%Y")
+                
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
                 telefone_salvar = telefone_familia.strip() if telefone_familia.strip() else "Não informado"
                 
-                cursor.execute('''
-                    INSERT INTO ocorrencias (
-                        data_registro, paciente, programa, tipo_alteracao, profissionais,
-                        ja_escala, ja_passou, motivo, datas_plantao, observacoes,
-                        telefone_familia, status_notificacao, data_notificacao, atendente_notificacao
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ''', (
-                    data_atual, nome_paciente_final, programa, tipos_str, profissionais,
-                    ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
-                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
-                ))
-                conn.commit()
-                st.success(f"✅ Ocorrência salva no banco de dados com sucesso!")
+                df_existente = carregar_dados_google_sheets()
+                novo_id = len(df_existente) + 1
+                
+                nova_linha = pd.DataFrame([{
+                    "id": novo_id,
+                    "data_registro": data_atual,
+                    "mes_referencia": mes_ref,
+                    "ano_referencia": ano_ref,
+                    "paciente": nome_paciente_final,
+                    "programa": programa,
+                    "tipo_alteracao": tipos_str,
+                    "profissionais": profissionais,
+                    "ja_escala": ja_da_escala,
+                    "ja_passou": ja_passou_escala,
+                    "motivo": motivo,
+                    "datas_plantao": datas_plantao,
+                    "observacoes": observacoes,
+                    "telefone_familia": telefone_salvar,
+                    "status_notificacao": "Pendente",
+                    "data_notificacao": "Não notificado",
+                    "atendente_notificacao": "Pendente"
+                }])
+
+                df_atualizado = pd.concat([df_existente, nova_linha], ignore_index=True)
+                conn.update(worksheet="Ocorrencias", data=df_atualizado)
+                
+                st.success(f"✅ Ocorrência salva com sucesso no Google Sheets (Mês: {mes_ref} | Ano: {ano_ref})!")
 
                 msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
@@ -234,18 +252,31 @@ _Por favor, realizar a notificação da família no sistema._"""
 
                 msg_encoded = urllib.parse.quote(msg_recepcao)
                 link_recepcao = f"https://wa.me/{TELEFONE_RECEPCAO_UNIDADE}?text={msg_encoded}"
+                link_acolhimento = f"https://wa.me/{TELEFONE_ACOLHIMENTO}?text={msg_encoded}"
 
-                st.markdown("### 📲 Próximo Passo: Enviar para a Recepção da Unidade")
-                st.markdown(f'''
-                    <a href="{link_recepcao}" target="_blank">
-                        <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer;">
-                            📲 Enviar Informe via WhatsApp (+55 87 9112-8133)
-                        </button>
-                    </a>
-                ''', unsafe_allow_html=True)
+                st.markdown("### 📲 Próximo Passo: Enviar para a Equipa da Unidade")
+                col_btn1, col_btn2 = st.columns(2)
+                
+                with col_btn1:
+                    st.markdown(f'''
+                        <a href="{link_recepcao}" target="_blank">
+                            <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
+                                📲 Enviar p/ Recepção (+55 87 9112-8133)
+                            </button>
+                        </a>
+                    ''', unsafe_allow_html=True)
+                    
+                with col_btn2:
+                    st.markdown(f'''
+                        <a href="{link_acolhimento}" target="_blank">
+                            <button style="background-color: #128C7E; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
+                                🏥 Enviar p/ Acolhimento
+                            </button>
+                        </a>
+                    ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# ABA 2: PAINEL DE NOTIFICAÇÃO
+# ABA 2: PAINEL DE NOTIFICAÇÃO (Atualização do Status na Nuvem)
 # ==============================================================================
 if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
     idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
@@ -253,7 +284,8 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
         st.header("📥 Ocorrências Pendentes de Notificação")
         st.write("Abaixo estão as alterações cadastradas aguardando contato com a família.")
 
-        df_pendentes = pd.read_sql_query("SELECT * FROM ocorrencias WHERE status_notificacao = 'Pendente'", conn)
+        df_todos = carregar_dados_google_sheets()
+        df_pendentes = df_todos[df_todos["status_notificacao"] == "Pendente"] if not df_todos.empty else pd.DataFrame()
 
         if df_pendentes.empty:
             st.info("🎉 Nenhuma notificação pendente no momento.")
@@ -261,6 +293,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
             for idx, row in df_pendentes.iterrows():
                 with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
                     st.write(f"**Data de Registro:** {row['data_registro']}")
+                    st.write(f"**Mês de Referência:** {row.get('mes_referencia', 'Não informado')}")
                     st.write(f"**Tipo de Alteração:** {row['tipo_alteracao']}")
                     st.write(f"**Profissionais:** {row['profissionais']}")
                     st.write(f"**Motivo:** {row['motivo']}")
@@ -270,7 +303,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
                     telefone_editado = st.text_input(
                         "WhatsApp do Responsável/Família (com 55 e DDD) *", 
-                        value=tel_atual, 
+                        value=str(tel_atual), 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: 5587999998888"
                     )
@@ -323,61 +356,78 @@ Agradecemos sua atenção e colaboração!"""
                             else:
                                 data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
-                                cursor.execute('''
-                                    UPDATE ocorrencias 
-                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
-                                    WHERE id = ?
-                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
-                                conn.commit()
-                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
+                                
+                                df_todos.loc[df_todos["id"] == row["id"], "status_notificacao"] = "Concluído"
+                                df_todos.loc[df_todos["id"] == row["id"], "data_notificacao"] = data_notif
+                                df_todos.loc[df_todos["id"] == row["id"], "atendente_notificacao"] = nome_atendente.strip()
+                                df_todos.loc[df_todos["id"] == row["id"], "telefone_familia"] = tel_final
+                                
+                                conn.update(worksheet="Ocorrencias", data=df_todos)
+                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()} no Google Sheets!")
                                 st.rerun()
 
 # ==============================================================================
-# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS
+# ABA 3: HISTÓRICO COMPLETO E COMPARATIVO MENSAL / ANUAL
 # ==============================================================================
-if "📊 3. Histórico e Relatórios" in abas_disponiveis:
-    idx_aba3 = abas_disponiveis.index("📊 3. Histórico e Relatórios")
+if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "📊 3. Histórico e Relatórios" in abas_disponiveis:
+    idx_aba3 = 1 if perfil_atual == "Unidade de Saúde" else 2
     with abas[idx_aba3]:
-        st.header("📊 Histórico Completo de Ocorrências e Relatórios")
+        st.header("📊 Histórico Completo e Controlo Comparativo de Períodos")
         
-        df_todos = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn)
+        df_todos = carregar_dados_google_sheets()
 
         if df_todos.empty:
-            st.warning("Nenhum registro encontrado no banco de dados.")
+            st.warning("Nenhum registro encontrado no Google Sheets.")
         else:
-            st.subheader("🔍 Filtros de Pesquisa")
-            f_col1, f_col2, f_col3 = st.columns(3)
+            st.subheader("📈 Painel Comparativo e Filtros de Período")
+            f_col1, f_col2, f_col3, f_col4 = st.columns(4)
             
+            anos_unicos = ["Todos"] + sorted(list(df_todos['ano_referencia'].dropna().unique()), reverse=True)
             with f_col1:
+                filtro_ano = st.selectbox("📅 Selecione o Ano:", anos_unicos)
+
+            meses_unicos = ["Todos"] + sorted(list(df_todos['mes_referencia'].dropna().unique()), reverse=True)
+            with f_col2:
+                filtro_mes = st.selectbox("🗓️ Selecione o Mês/Ano:", meses_unicos)
+
+            with f_col3:
                 filtro_status = st.selectbox("Status de Notificação:", ["Todos", "Pendente", "Concluído"])
             
-            with f_col2:
+            with f_col4:
                 lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].unique()))
                 filtro_paciente = st.selectbox("Filtrar por Paciente:", lista_pacientes_filtro)
-                
-            with f_col3:
-                lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
-                filtro_programa = st.selectbox("Filtrar por Programa:", lista_programas_filtro)
 
             df_filtrado = df_todos.copy()
+
+            if filtro_ano != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["ano_referencia"] == filtro_ano]
+
+            if filtro_mes != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["mes_referencia"] == filtro_mes]
 
             if filtro_status != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
                 
             if filtro_paciente != "Todos":
                 df_filtrado = df_filtrado[df_filtrado["paciente"] == filtro_paciente]
-                
-            if filtro_programa != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["programa"] == filtro_programa]
 
+            # Métricas e Estatísticas Rápidas do Período
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Total de Ocorrências no Período", len(df_filtrado))
+            col_m2.metric("Notificações Concluídas", len(df_filtrado[df_filtrado["status_notificacao"] == "Concluído"]))
+            col_m3.metric("Pendentes de Contato", len(df_filtrado[df_filtrado["status_notificacao"] == "Pendente"]))
+
+            st.divider()
             st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
             st.dataframe(df_filtrado, use_container_width=True)
 
             csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
             
+            nome_arquivo = f"relatorio_escalas_{filtro_mes.replace('/', '_') if filtro_mes != 'Todos' else filtro_ano}.csv"
+            
             st.download_button(
-                label="📥 Baixar Relatório Filtrado (Excel / CSV Organizado)",
+                label=f"📥 Baixar Relatório do Período em Excel / CSV Organizado",
                 data=csv_organizado,
-                file_name=f"relatorio_escalas_{datetime.now().strftime('%Y%m%d_%H%M')}.csv",
+                file_name=nome_arquivo,
                 mime="text/csv"
             )
