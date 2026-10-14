@@ -9,7 +9,7 @@ from datetime import datetime
 # ==============================================================================
 # DEFINIÇÃO DOS NÚMEROS DE TELEFONE DE NOTIFICAÇÃO
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
-TELEFONE_SERVIÇO_SOCIAL = "5587988143263"  # Substitua pelo número exato do Acolhimento
+TELEFONE_SERVICO_SOCIAL = "5587988143263"  # Substitua pelo número exato do Acolhimento
 
 # Conexão ao banco de dados SQLite 'escala_hospitalar_v2.db'
 conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
@@ -266,9 +266,9 @@ _Por favor, realizar a notificação da família no sistema._"""
                     
                 with col_btn2:
                     st.markdown(f'''
-                        <a href="{link_Serviço Social ADU}" target="_blank">
+                        <a href="{link_Servico Social ADU}" target="_blank">
                             <button style="background-color: #128C7E; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
-                                🏥 Enviar p/ Serviço_Social
+                                🏥 Enviar p/ Servico_Social
                             </button>
                         </a>
                     ''', unsafe_allow_html=True)
