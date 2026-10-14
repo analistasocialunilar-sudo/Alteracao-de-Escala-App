@@ -256,7 +256,7 @@ _Por favor, realizar a notificação da família no sistema._"""
 
                 msg_encoded = urllib.parse.quote(msg_recepcao)
                 link_recepcao = f"https://wa.me/{TELEFONE_RECEPCAO_UNIDADE}?text={msg_encoded}"
-                link_acolhimento = f"https://wa.me/{TELEFONE_SERVICO_SOCIAL}?text={msg_encoded}"
+                link_acolhimento = f"https://wa.me/{TELEFONE_ACOLHIMENTO}?text={msg_encoded}"
 
                 st.markdown("### 📲 Próximo Passo: Enviar para a Equipa da Unidade")
                 col_btn1, col_btn2 = st.columns(2)
