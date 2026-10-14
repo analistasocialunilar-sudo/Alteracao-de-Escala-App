@@ -1,4 +1,5 @@
 import streamlit as st
+import sqlite3
 import pandas as pd
 import urllib.parse
 from datetime import datetime
@@ -6,56 +7,87 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O GOOGLE SHEETS VIA GSPREAD
+# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS E GOOGLE SHEETS
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 TELEFONE_ACOLHIMENTO = "558791128133"  # Substitua pelo número exato do Acolhimento
 
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
 
-@st.cache_resource
+# Conexão de fallback com o banco SQLite local
+conn_sqlite = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
+cursor = conn_sqlite.cursor()
+
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ocorrencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data_registro TEXT,
+        mes_referencia TEXT,
+        ano_referencia TEXT,
+        paciente TEXT,
+        programa TEXT,
+        tipo_alteracao TEXT,
+        profissionais TEXT,
+        ja_escala TEXT,
+        ja_passou TEXT,
+        motivo TEXT,
+        datas_plantao TEXT,
+        observacoes TEXT,
+        telefone_familia TEXT,
+        status_notificacao TEXT,
+        data_notificacao TEXT,
+        atendente_notificacao TEXT
+    )
+''')
+conn_sqlite.commit()
+
 def obter_conexao_gspread():
     """
-    Cria uma conexão direta e segura com o Google Sheets utilizando o gspread.
-    Utiliza as credenciais guardadas em st.secrets["connections"]["gsheets"].
+    Tenta conectar ao Google Sheets procurando as credenciais de forma flexível.
+    Retorna a aba da planilha se configurado, ou None caso contrário.
     """
-    escopos = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    
-    # Carrega as credenciais da seção Secrets do Streamlit Cloud
-    info_credenciais = dict(st.secrets["connections"]["gsheets"])
-    
-    # Remove chaves de configuração do Streamlit que não pertencem ao Service Account
-    info_credenciais.pop("spreadsheet", None)
-    info_credenciais.pop("type", None)
+    try:
+        escopos = [
+            "https://www.googleapis.com/auth/spreadsheets",
+            "https://www.googleapis.com/auth/drive"
+        ]
+        
+        # Procura credenciais dentro de st.secrets['connections']['gsheets'] ou na raiz
+        if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
+            info_credenciais = dict(st.secrets["connections"]["gsheets"])
+        elif "type" in st.secrets:
+            info_credenciais = dict(st.secrets)
+        else:
+            return None
 
-    creds = Credentials.from_service_account_info(info_credenciais, scopes=escopos)
-    client = gspread.authorize(creds)
-    
-    # Abre a planilha pelo URL fornecido nos Secrets
-    url_planilha = st.secrets["connections"]["gsheets"]["spreadsheet"]
-    sheet = client.open_by_url(url_planilha).worksheet("Ocorrencias")
-    return sheet
+        url_planilha = info_credenciais.pop("spreadsheet", None)
+        info_credenciais.pop("type_connection", None)
+
+        creds = Credentials.from_service_account_info(info_credenciais, scopes=escopos)
+        client = gspread.authorize(creds)
+        
+        if url_planilha:
+            sheet = client.open_by_url(url_planilha).worksheet("Ocorrencias")
+            return sheet
+        return None
+    except Exception:
+        return None
 
 def carregar_dados():
     """
-    Lê todas as linhas da aba 'Ocorrencias' no Google Sheets e converte em DataFrame.
+    Lê os dados do Google Sheets. Se não estiver configurado, lê do banco SQLite local.
     """
-    try:
-        aba = obter_conexao_gspread()
-        dados = aba.get_all_records()
-        df = pd.DataFrame(dados)
-        return df
-    except Exception as e:
-        colunas = [
-            "id", "data_registro", "mes_referencia", "ano_referencia", "paciente", 
-            "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou", 
-            "motivo", "datas_plantao", "observacoes", "telefone_familia", 
-            "status_notificacao", "data_notificacao", "atendente_notificacao"
-        ]
-        return pd.DataFrame(columns=colunas)
+    aba = obter_conexao_gspread()
+    if aba is not None:
+        try:
+            dados = aba.get_all_records()
+            return pd.DataFrame(dados)
+        except Exception:
+            pass
+    
+    # Fallback para o SQLite
+    df = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn_sqlite)
+    return df
 
 # ==============================================================================
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
@@ -137,12 +169,12 @@ PACIENTES_BASE = {
 lista_nomes_ordenada = list(PACIENTES_BASE.keys())
 
 # ==============================================================================
-# 4. CABEÇALHO DO SISTEMA E NAVEGAÇÃO DE PERFIS
+# 4. CABEÇALHO DO SISTEMA E NAVEGAÇÃO
 # ==============================================================================
 col_tit, col_user = st.columns([3, 1])
 with col_tit:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
-    st.caption("Atenção Domiciliar - Registro de Alterações, Notificações e Histórico no Google Sheets")
+    st.caption("Atenção Domiciliar - Registro de Alterações, Notificações e Histórico Mensal/Anual")
 
 with col_user:
     st.write(f"👤 **{st.session_state['usuario_nome']}**")
@@ -168,13 +200,13 @@ else:
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA TERCEIRIZADA (Adição de linha no Google Sheets)
+# ABA 1: REGISTRO PELA TERCEIRIZADA
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
     with abas[idx_aba1]:
         st.header("📋 Registrar Informe de Alteração de Escala")
-        st.write("Selecione o paciente na lista suspensa para registrar a ocorrência no Google Sheets.")
+        st.write("Selecione o paciente na lista suspensa para registrar a ocorrência.")
 
         paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada)
         programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
@@ -214,7 +246,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
-            btn_enviar = st.form_submit_button("💾 Salvar na Nuvem e Enviar para a Unidade")
+            btn_enviar = st.form_submit_button("💾 Salvar Registro e Enviar Notificação")
 
         if btn_enviar:
             if not nome_paciente_final:
@@ -228,37 +260,41 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
                 telefone_salvar = telefone_familia.strip() if telefone_familia.strip() else "Não informado"
                 
-                # Obter dados atuais para gerar o novo ID
                 df_existente = carregar_dados()
                 novo_id = len(df_existente) + 1
                 
-                # Cria a lista exatamente na ordem das colunas da planilha
-                nova_linha_lista = [
-                    novo_id,
-                    data_atual,
-                    mes_ref,
-                    ano_ref,
-                    nome_paciente_final,
-                    programa,
-                    tipos_str,
-                    profissionais,
-                    ja_da_escala,
-                    ja_passou_escala,
-                    motivo,
-                    datas_plantao,
-                    observacoes,
-                    telefone_salvar,
-                    "Pendente",
-                    "Não notificado",
-                    "Pendente"
-                ]
+                # 1. Salva no SQLite local
+                cursor.execute('''
+                    INSERT INTO ocorrencias (
+                        data_registro, mes_referencia, ano_referencia, paciente, programa, tipo_alteracao, profissionais,
+                        ja_escala, ja_passou, motivo, datas_plantao, observacoes,
+                        telefone_familia, status_notificacao, data_notificacao, atendente_notificacao
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    data_atual, mes_ref, ano_ref, nome_paciente_final, programa, tipos_str, profissionais,
+                    ja_da_escala, ja_passou_escala, motivo, datas_plantao, observacoes,
+                    telefone_salvar, "Pendente", "Não notificado", "Pendente"
+                ))
+                conn_sqlite.commit()
 
-                # Anexa a nova linha diretamente no Google Sheets de forma segura
+                # 2. Tenta salvar no Google Sheets se estiver configurado
                 aba_sheets = obter_conexao_gspread()
-                aba_sheets.append_row(nova_linha_lista)
-                
-                st.success(f"✅ Ocorrência salva com sucesso no Google Sheets (Mês: {mes_ref} | Ano: {ano_ref})!")
+                if aba_sheets is not None:
+                    try:
+                        nova_linha_lista = [
+                            novo_id, data_atual, mes_ref, ano_ref, nome_paciente_final,
+                            programa, tipos_str, profissionais, ja_da_escala, ja_passou_escala,
+                            motivo, datas_plantao, observacoes, telefone_salvar,
+                            "Pendente", "Não notificado", "Pendente"
+                        ]
+                        aba_sheets.append_row(nova_linha_lista)
+                        st.success(f"✅ Salvo com sucesso no Google Sheets e SQLite (Mês: {mes_ref})!")
+                    except Exception as e:
+                        st.success(f"✅ Salvo no banco de dados SQLite (Mês: {mes_ref})!")
+                else:
+                    st.success(f"✅ Salvo no banco de dados SQLite (Mês: {mes_ref})!")
 
+                # 3. Prepara mensagem para o WhatsApp
                 msg_recepcao = f"""*NOVO INFORME DE ALTERAÇÃO DE ESCALA* 🚨
 
 *Paciente:* {nome_paciente_final}
@@ -278,7 +314,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                 link_recepcao = f"https://wa.me/{TELEFONE_RECEPCAO_UNIDADE}?text={msg_encoded}"
                 link_acolhimento = f"https://wa.me/{TELEFONE_ACOLHIMENTO}?text={msg_encoded}"
 
-                st.markdown("### 📲 Próximo Passo: Enviar para a Equipa da Unidade")
+                st.markdown("### 📲 Próximo Passo: Enviar Notificação via WhatsApp")
                 col_btn1, col_btn2 = st.columns(2)
                 
                 with col_btn1:
@@ -381,20 +417,30 @@ Agradecemos sua atenção e colaboração!"""
                                 data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                 tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
                                 
-                                # Atualiza no Google Sheets via gspread encontrando a linha correspondente pelo ID
-                                aba_sheets = obter_conexao_gspread()
-                                celula = aba_sheets.find(str(row["id"]))
+                                # Atualiza no SQLite local
+                                cursor.execute('''
+                                    UPDATE ocorrencias 
+                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
+                                    WHERE id = ?
+                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
+                                conn_sqlite.commit()
                                 
-                                if celula:
-                                    linha_num = celula.row
-                                    # Atualiza as colunas: telefone_familia (Col 14), status_notificacao (Col 15), data_notificacao (Col 16), atendente_notificacao (Col 17)
-                                    aba_sheets.update_cell(linha_num, 14, tel_final)
-                                    aba_sheets.update_cell(linha_num, 15, "Concluído")
-                                    aba_sheets.update_cell(linha_num, 16, data_notif)
-                                    aba_sheets.update_cell(linha_num, 17, nome_atendente.strip())
-                                    
-                                    st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()} no Google Sheets!")
-                                    st.rerun()
+                                # Tenta atualizar no Google Sheets se estiver conectado
+                                aba_sheets = obter_conexao_gspread()
+                                if aba_sheets is not None:
+                                    try:
+                                        celula = aba_sheets.find(str(row["id"]))
+                                        if celula:
+                                            linha_num = celula.row
+                                            aba_sheets.update_cell(linha_num, 14, tel_final)
+                                            aba_sheets.update_cell(linha_num, 15, "Concluído")
+                                            aba_sheets.update_cell(linha_num, 16, data_notif)
+                                            aba_sheets.update_cell(linha_num, 17, nome_atendente.strip())
+                                    except Exception:
+                                        pass
+                                
+                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
+                                st.rerun()
 
 # ==============================================================================
 # ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS MENSAIS E ANUAIS
@@ -407,7 +453,7 @@ if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "�
         df_todos = carregar_dados()
 
         if df_todos.empty:
-            st.warning("Nenhum registro encontrado no Google Sheets.")
+            st.warning("Nenhum registro encontrado no banco de dados.")
         else:
             st.subheader("🔍 Filtros de Pesquisa por Mês, Ano e Categoria")
             f_col1, f_col2, f_col3, f_col4 = st.columns(4)
