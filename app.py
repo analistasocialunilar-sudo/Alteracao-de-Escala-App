@@ -6,28 +6,30 @@ import gspread
 from google.oauth2.service_account import Credentials
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O GOOGLE SHEETS
+# 1. CONFIGURAÇÃO INICIAL E CONEXÃO COM O GOOGLE SHEETS
 # ==============================================================================
+# Configuração visual e título da página no navegador
+st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
+
+# Telefones oficiais para notificação via WhatsApp
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
 
 # ID fixo e permanente da planilha no Google Drive
 SPREADSHEET_ID = "17EYZ4K6CzicFFRNlfVnaInhYg1NMAA21IguAh-wK4lI"
 
-# Configuração da página no Streamlit
-st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
-
 def obter_conexao_gspread():
     """
     Estabelece a conexão com a API do Google Sheets utilizando as credenciais
-    guardadas no Secrets do Streamlit Cloud.
+    guardadas no Secrets do Streamlit Cloud, aplicando tratamento automático
+    da chave privada PEM para evitar erros de formatação.
     """
     escopos = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
     
-    # Leitura flexível das credenciais no st.secrets
+    # 1. Leitura flexível dos Secrets do Streamlit Cloud
     if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
         info_credenciais = dict(st.secrets["connections"]["gsheets"])
     elif "type" in st.secrets:
@@ -35,9 +37,18 @@ def obter_conexao_gspread():
     else:
         raise ValueError("Credenciais do Google Sheets não foram encontradas no Secrets do Streamlit.")
 
+    # 2. Remoção de chaves auxiliares que não pertencem à API da Google
     info_credenciais.pop("spreadsheet", None)
     info_credenciais.pop("type_connection", None)
 
+    # 3. CORREÇÃO DA CHAVE PRIVADA (Fix para o erro 'Unable to load PEM file')
+    if "private_key" in info_credenciais:
+        chave_str = str(info_credenciais["private_key"])
+        # Substitui caracteres literais '\\n' por quebras de linha reais '\n'
+        if "\\n" in chave_str:
+            info_credenciais["private_key"] = chave_str.replace("\\n", "\n")
+
+    # 4. Autenticação via Conta de Serviço e abertura da aba 'Ocorrencias'
     creds = Credentials.from_service_account_info(info_credenciais, scopes=escopos)
     client = gspread.authorize(creds)
     
@@ -47,7 +58,8 @@ def obter_conexao_gspread():
 
 def carregar_dados():
     """
-    Lê os dados acumulados permanentemente na planilha do Google Sheets.
+    Lê os dados acumulados permanentemente na planilha do Google Sheets
+    e retorna um DataFrame do Pandas.
     """
     try:
         aba = obter_conexao_gspread()
@@ -74,12 +86,14 @@ USUARIOS = {
     "admin": {"senha": "adu@210escalas", "perfil": "Administrador", "nome": "Gestor do Sistema"}
 }
 
+# Inicialização do estado de sessão do utilizador
 if "autenticado" not in st.session_state:
     st.session_state["autenticado"] = False
     st.session_state["usuario_nome"] = ""
     st.session_state["usuario_perfil"] = ""
 
 def realizar_login(usuario, senha):
+    """Valida as credenciais do utilizador e atualiza a sessão."""
     if usuario in USUARIOS and USUARIOS[usuario]["senha"] == senha:
         st.session_state["autenticado"] = True
         st.session_state["usuario_nome"] = USUARIOS[usuario]["nome"]
@@ -90,11 +104,13 @@ def realizar_login(usuario, senha):
         st.error("Utilizador ou palavra-passe incorretos.")
 
 def realizar_logout():
+    """Encerra a sessão atual do utilizador."""
     st.session_state["autenticado"] = False
     st.session_state["usuario_nome"] = ""
     st.session_state["usuario_perfil"] = ""
     st.rerun()
 
+# Bloqueio de ecrã para utilizadores não autenticados
 if not st.session_state["autenticado"]:
     st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
     st.subheader("🔐 Acesso Restrito - Faça o seu Login")
@@ -110,7 +126,7 @@ if not st.session_state["autenticado"]:
     st.stop()
 
 # ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES
+# 3. BASE DE DADOS DE PACIENTES (Iniciais Anónimas)
 # ==============================================================================
 PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
@@ -176,7 +192,7 @@ else:
 abas = st.tabs(abas_disponiveis)
 
 # ==============================================================================
-# ABA 1: REGISTRO PELA TERCEIRIZADA
+# ABA 1: REGISTO PELA EMPRESA TERCEIRIZADA
 # ==============================================================================
 if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
@@ -293,7 +309,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                     ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# ABA 2: PAINEL DE NOTIFICAÇÃO
+# ABA 2: PAINEL DE NOTIFICAÇÃO (UNIDADE DE SAÚDE)
 # ==============================================================================
 if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
     idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
