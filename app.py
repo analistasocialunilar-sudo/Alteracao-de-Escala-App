@@ -311,7 +311,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                         placeholder="Ex: 5587999998888"
                     )
 
-                    texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
+                    texto_whatsapp = f"""*Comunicado Importante!* - *AVISO DE AJUSTE DE ESCALA* •
 
 Olá!
 
@@ -319,7 +319,7 @@ A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o s
 
 *{row['profissionais']}*
 
-*Data:* {row['datas_plantao']}
+*Data:{row['datas_plantao']}*
 
 Favor, confirmar o recebimento e ciência deste comunicado.
 
