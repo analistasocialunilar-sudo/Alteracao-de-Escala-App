@@ -313,11 +313,12 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
 
                     texto_whatsapp = f"""Comunicado Importante! - *AVISO DE AJUSTE DE ESCALA* •
 
-Olá, boa tarde!
+Olá!
 
 A fim de garantir a assistência do paciente *{row['paciente']}*, informamos o seguinte ajuste na escala: *{row['tipo_alteracao']}*:
 
-{row['profissionais']}
+*{row['profissionais']}*
+
 *Data:* {row['datas_plantao']}
 
 Favor, confirmar o recebimento e ciência deste comunicado.
