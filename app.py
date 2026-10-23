@@ -2,85 +2,47 @@ import streamlit as st
 import pandas as pd
 import urllib.parse
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O GOOGLE SHEETS (GSPREAD)
+# 1. CONFIGURAÇÃO E CONEXÃO NATIVA COM O GOOGLE SHEETS
 # ==============================================================================
+st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
+
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
-TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
+TELEFONE_ACOLHIMENTO = "5587988143263"
 EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
 
-# ID fixo da tua planilha no Google Drive
-SPREADSHEET_ID = "17EYZ4K6CzicFFRNlfVnaInhYg1NMAA21IguAh-wK4lI"
-
-def obter_conexao_gspread():
+def obter_conexao_sheets():
     """
-    Estabelece a conexão com a API do Google Sheets utilizando as credenciais
-    guardadas no Secrets do Streamlit Cloud, assegurando a leitura e escrita permanente.
+    Estabelece a conexão com a planilha do Google Sheets utilizando 
+    o conector nativo do Streamlit.
     """
-    escopos = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    
-    if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
-        info_credenciais = dict(st.secrets["connections"]["gsheets"])
-    elif "type" in st.secrets:
-        info_credenciais = dict(st.secrets)
-    else:
-        raise ValueError("Credenciais do Google Sheets não encontradas nos Secrets do Streamlit.")
-
-    info_credenciais.pop("spreadsheet", None)
-    info_credenciais.pop("type_connection", None)
-
-    if "private_key" in info_credenciais:
-        chave_str = str(info_credenciais["private_key"]).strip()
-        if "\\n" in chave_str:
-            chave_str = chave_str.replace("\\n", "\n")
-        info_credenciais["private_key"] = chave_str
-
-    creds = Credentials.from_service_account_info(info_credenciais, scopes=escopos)
-    client = gspread.authorize(creds)
-    
-    planilha = client.open_by_key(SPREADSHEET_ID)
     try:
-        aba = planilha.worksheet("Ocorrencias")
-    except gspread.exceptions.WorksheetNotFound:
-        aba = planilha.add_worksheet(title="Ocorrencias", rows=1000, cols=20)
-        cabecalhos = [
+        conn = st.connection("gsheets", type="gsheets")
+        return conn
+    except Exception as e:
+        st.error(f"⚠️ Erro ao inicializar a conexão com o Google Sheets: {e}")
+        return None
+
+def carregar_dados():
+    """
+    Lê os dados acumulados permanentemente na folha da planilha do Google Drive.
+    """
+    try:
+        conn = obter_conexao_sheets()
+        if conn:
+            df = conn.read(ttl=0)
+            if df is not None and not df.empty:
+                return df
+        return pd.DataFrame(columns=[
             "id", "data_registro", "mes_referencia", "ano_referencia", "paciente",
             "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou",
             "motivo", "datas_plantao", "observacoes", "telefone_familia",
             "status_notificacao", "data_notificacao", "atendente_notificacao"
-        ]
-        aba.append_row(cabecalhos)
-        
-    return aba
-
-def carregar_dados():
-    """
-    Lê os dados acumulados permanentemente na aba do Google Sheets.
-    """
-    try:
-        aba = obter_conexao_gspread()
-        dados = aba.get_all_records()
-        if dados:
-            return pd.DataFrame(dados)
-        else:
-            return pd.DataFrame(columns=[
-                "id", "data_registro", "mes_referencia", "ano_referencia", "paciente",
-                "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou",
-                "motivo", "datas_plantao", "observacoes", "telefone_familia",
-                "status_notificacao", "data_notificacao", "atendente_notificacao"
-            ])
+        ])
     except Exception as e:
         st.error(f"⚠️ Erro ao carregar dados do Google Sheets: {e}")
         return pd.DataFrame()
-
-# Configuração da página no Streamlit
-st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
 
 # ==============================================================================
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
@@ -258,15 +220,30 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 novo_id = len(df_existente) + 1
                 
                 try:
-                    aba_sheets = obter_conexao_gspread()
-                    nova_linha = [
-                        novo_id, data_atual, mes_ref, ano_ref, nome_paciente_final,
-                        programa, tipos_str, profissionais, ja_da_escala, ja_passou_escala,
-                        motivo, datas_plantao, observacoes, telefone_salvar,
-                        "Pendente", "Não notificado", "Pendente"
-                    ]
-                    aba_sheets.append_row(nova_linha)
-                    st.success(f"✅ Ocorrência #{novo_id} salva permanentemente no Google Sheets (Mês: {mes_ref})!")
+                    conn = obter_conexao_sheets()
+                    nova_linha_df = pd.DataFrame([{
+                        "id": novo_id,
+                        "data_registro": data_atual,
+                        "mes_referencia": mes_ref,
+                        "ano_referencia": ano_ref,
+                        "paciente": nome_paciente_final,
+                        "programa": programa,
+                        "tipo_alteracao": tipos_str,
+                        "profissionais": profissionais,
+                        "ja_escala": ja_da_escala,
+                        "ja_passou": ja_passou_escala,
+                        "motivo": motivo,
+                        "datas_plantao": datas_plantao,
+                        "observacoes": observacoes,
+                        "telefone_familia": telefone_salvar,
+                        "status_notificacao": "Pendente",
+                        "data_notificacao": "Não notificado",
+                        "atendente_notificacao": "Pendente"
+                    }])
+                    
+                    df_atualizado = pd.concat([df_existente, nova_linha_df], ignore_index=True)
+                    conn.update(data=df_atualizado)
+                    st.success(f"✅ Ocorrência #{novo_id} salva permanentemente na planilha do Google Drive (Mês: {mes_ref})!")
                 except Exception as err:
                     st.error(f"❌ Falha ao gravar no Google Sheets: {err}")
 
@@ -394,14 +371,17 @@ Agradecemos sua atenção e colaboração!"""
                                 tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
                                 
                                 try:
-                                    aba_sheets = obter_conexao_gspread()
-                                    celula = aba_sheets.find(str(row["id"]))
-                                    if celula:
-                                        linha_num = celula.row
-                                        aba_sheets.update_cell(linha_num, 14, tel_final)
-                                        aba_sheets.update_cell(linha_num, 15, "Concluído")
-                                        aba_sheets.update_cell(linha_num, 16, data_notif)
-                                        aba_sheets.update_cell(linha_num, 17, nome_atendente.strip())
+                                    conn = obter_conexao_sheets()
+                                    df_completo = carregar_dados()
+                                    
+                                    mask = df_completo['id'].astype(str) == str(row['id'])
+                                    if mask.any():
+                                        df_completo.loc[mask, 'telefone_familia'] = tel_final
+                                        df_completo.loc[mask, 'status_notificacao'] = 'Concluído'
+                                        df_completo.loc[mask, 'data_notificacao'] = data_notif
+                                        df_completo.loc[mask, 'atendente_notificacao'] = nome_atendente.strip()
+                                        
+                                        conn.update(data=df_completo)
                                         st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
                                         st.rerun()
                                     else:
