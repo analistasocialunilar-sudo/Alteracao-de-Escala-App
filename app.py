@@ -11,34 +11,38 @@ TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
 EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
 
-# Conexão ao banco de dados SQLite local 'escala_hospitalar_v2.db'
-conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
-cursor = conn.cursor()
+def obter_conexao_sheets():
+    """
+    Estabelece a conexão com a planilha do Google Sheets utilizando 
+    o conector nativo do Streamlit.
+    """
+    try:
+        conn = st.connection("gsheets", type="gsheets")
+        return conn
+    except Exception as e:
+        st.error(f"⚠️ Erro ao inicializar a conexão com o Google Sheets: {e}")
+        return None
 
-# Tabela de ocorrências com suporte a controle mensal e anual
-cursor.execute('''
-    CREATE TABLE IF NOT EXISTS ocorrencias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_registro TEXT,
-        mes_referencia TEXT,
-        ano_referencia TEXT,
-        paciente TEXT,
-        programa TEXT,
-        tipo_alteracao TEXT,
-        profissionais TEXT,
-        ja_escala TEXT,
-        ja_passou TEXT,
-        motivo TEXT,
-        datas_plantao TEXT,
-        observacoes TEXT,
-        telefone_familia TEXT,
-        status_notificacao TEXT,
-        data_notificacao TEXT,
-        atendente_notificacao TEXT
-    )
-''')
-conn.commit()
-
+def carregar_dados():
+    """
+    Lê os dados acumulados permanentemente na planilha do Google Drive.
+    """
+    try:
+        conn = obter_conexao_sheets()
+        if conn:
+            # Lê os dados da planilha diretamente para um DataFrame do Pandas (ttl=0 para não usar cache antiga)
+            df = conn.read(ttl=0)
+            if df is not None and not df.empty:
+                return df
+        return pd.DataFrame(columns=[
+            "id", "data_registro", "mes_referencia", "ano_referencia", "paciente",
+            "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou",
+            "motivo", "datas_plantao", "observacoes", "telefone_familia",
+            "status_notificacao", "data_notificacao", "atendente_notificacao"
+        ])
+    except Exception as e:
+        st.error(f"⚠️ Erro ao carregar dados do Google Sheets: {e}")
+        return pd.DataFrame()
 # Adiciona colunas de referência caso o banco seja de versão anterior
 try:
     cursor.execute("ALTER TABLE ocorrencias ADD COLUMN mes_referencia TEXT")
