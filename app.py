@@ -3,6 +3,7 @@ import sqlite3
 import pandas as pd
 import urllib.parse
 from datetime import datetime
+
 # ==============================================================================
 # 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
 # ==============================================================================
@@ -16,27 +17,26 @@ cursor = conn.cursor()
 
 # Tabela de ocorrências com suporte a controle mensal e anual
 cursor.execute('''
-    CREATE TABLE IF NOT EXISTS ocorrencias (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        data_registro TEXT,
-        mes_referencia TEXT,
-        ano_referencia TEXT,
-        paciente TEXT,
-        programa TEXT,
-        tipo_alteracao TEXT,
-        profissionais TEXT,
-        ja_escala TEXT,
-        ja_passou TEXT,
-        motivo TEXT,
-        datas_plantao TEXT,
-        observacoes TEXT,
-        telefone_familia TEXT,
-        status_notificacao TEXT,
-        data_notificacao TEXT,
-        atendente_notificacao TEXT
-    )
+    CREATE TABLE IF NOT EXISTS ocorrencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data_registro TEXT,
+        mes_referencia TEXT,
+        ano_referencia TEXT,
+        paciente TEXT,
+        programa TEXT,
+        tipo_alteracao TEXT,
+        profissionais TEXT,
+        ja_escala TEXT,
+        ja_passou TEXT,
+        motivo TEXT,
+        datas_plantao TEXT,
+        observacoes TEXT,
+        telefone_familia TEXT,
+        status_notificacao TEXT,
+        data_notificacao TEXT,
+        atendente_notificacao TEXT
+    )
 ''')
-
 conn.commit()
 
 # Adiciona colunas de referência caso o banco seja de versão anterior
