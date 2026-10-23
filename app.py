@@ -328,4 +328,123 @@ Favor, confirmar o recebimento e ciência deste comunicado.
 Agradecemos sua atenção e colaboração!"""
 
                     texto_encoded = urllib.parse.quote(texto_whatsapp)
-                    num_link = telefone_editado.strip() if telefone_editado.strip() else "0000
+                    num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
+                    link_wa = f"https://wa.me/{num_link}?text={texto_encoded}"
+
+                    st.markdown("---")
+                    col_wa, col_atendente, col_btn = st.columns([1, 1.5, 1.5])
+                    
+                    with col_wa:
+                        if telefone_editado.strip():
+                            st.markdown(f'''
+                                <a href="{link_wa}" target="_blank">
+                                    <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                                        📱 Abrir WhatsApp
+                                    </button>
+                                </a>
+                            ''', unsafe_allow_html=True)
+                        else:
+                            st.warning("⚠️ Insira o número do telefone acima para ativar o botão do WhatsApp.")
+                    
+                    with col_atendente:
+                        nome_atendente = st.text_input(
+                            f"Nome do Atendente/Servidor *", 
+                            value=st.session_state["usuario_nome"] if st.session_state["usuario_nome"] != "Equipa da Unidade" else "",
+                            key=f"atendente_{row['id']}",
+                            placeholder="Digite o seu nome"
+                        )
+                    
+                    with col_btn:
+                        st.write("")
+                        if st.button(f"✅ Concluir Notificação", key=f"btn_concluir_{row['id']}"):
+                            if not nome_atendente.strip():
+                                st.error("⚠️ Por favor, digite o nome do atendente antes de concluir.")
+                            else:
+                                data_notif = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                                tel_final = telefone_editado.strip() if telefone_editado.strip() else "Não informado"
+                                cursor.execute('''
+                                    UPDATE ocorrencias 
+                                    SET status_notificacao = 'Concluído', data_notificacao = ?, atendente_notificacao = ?, telefone_familia = ?
+                                    WHERE id = ?
+                                ''', (data_notif, nome_atendente.strip(), tel_final, row['id']))
+                                conn.commit()
+                                st.success(f"Status do registro #{row['id']} atualizado por {nome_atendente.strip()}!")
+                                st.rerun()
+
+# ==============================================================================
+# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS MENSAIS/ANUAIS
+# ==============================================================================
+if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "📊 3. Histórico e Relatórios" in abas_disponiveis:
+    idx_aba3 = 1 if perfil_atual == "Unidade de Saúde" else 2
+    with abas[idx_aba3]:
+        st.header("📊 Histórico Completo de Ocorrências e Relatórios Mensais/Anuais")
+        st.caption(f"Relatório gerado pela unidade: {EMAIL_SUPORTE_UNIDADE}")
+        
+        df_todos = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn)
+
+        if df_todos.empty:
+            st.warning("Nenhum registro encontrado no banco de dados.")
+        else:
+            st.subheader("🔍 Filtros de Pesquisa por Ano, Mês e Categoria")
+            f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns(5)
+            
+            # Filtro por Ano
+            anos_unicos = [a for a in df_todos['ano_referencia'].dropna().unique() if a]
+            lista_anos_filtro = ["Todos"] + sorted(anos_unicos, reverse=True)
+            with f_col1:
+                filtro_ano = st.selectbox("📅 Ano:", lista_anos_filtro)
+
+            # Filtro por Mês
+            meses_unicos = [m for m in df_todos['mes_referencia'].dropna().unique() if m]
+            lista_meses_filtro = ["Todos"] + sorted(meses_unicos, reverse=True)
+            with f_col2:
+                filtro_mes = st.selectbox("🗓️ Mês/Ano:", lista_meses_filtro)
+
+            with f_col3:
+                filtro_status = st.selectbox("Status:", ["Todos", "Pendente", "Concluído"])
+            
+            with f_col4:
+                lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].unique()))
+                filtro_paciente = st.selectbox("Paciente:", lista_pacientes_filtro)
+                
+            with f_col5:
+                lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
+                fil_programa = st.selectbox("Programa:", lista_programas_filtro)
+
+            df_filtrado = df_todos.copy()
+
+            if filtro_ano != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["ano_referencia"] == filtro_ano]
+
+            if filtro_mes != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["mes_referencia"] == filtro_mes]
+
+            if filtro_status != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
+                
+            if filtro_paciente != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["paciente"] == filtro_paciente]
+                
+            if fil_programa != "Todos":
+                df_filtrado = df_filtrado[df_filtrado["programa"] == fil_programa]
+
+            # Métricas rápidas
+            col_m1, col_m2, col_m3 = st.columns(3)
+            col_m1.metric("Total no Período", len(df_filtrado))
+            col_m2.metric("Concluídas", len(df_filtrado[df_filtrado["status_notificacao"] == "Concluído"]))
+            col_m3.metric("Pendentes", len(df_filtrado[df_filtrado["status_notificacao"] == "Pendente"]))
+
+            st.divider()
+            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
+            st.dataframe(df_filtrado, use_container_width=True)
+
+            csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
+            
+            nome_arquivo = f"relatorio_escalas_{filtro_mes.replace('/', '_') if filtro_mes != 'Todos' else filtro_ano}.csv"
+            
+            st.download_button(
+                label=f"📥 Baixar Relatório Filtrado em Excel / CSV",
+                data=csv_organizado,
+                file_name=nome_arquivo,
+                mime="text/csv"
+            )
