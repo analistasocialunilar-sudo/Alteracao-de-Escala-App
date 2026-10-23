@@ -37,7 +37,9 @@ cursor.execute('''
         atendente_notificacao TEXT
     )
 ''')
+
 conn.commit()
+
 # Adiciona colunas de referência caso o banco seja de versão anterior
 try:
     cursor.execute("ALTER TABLE ocorrencias ADD COLUMN mes_referencia TEXT")
