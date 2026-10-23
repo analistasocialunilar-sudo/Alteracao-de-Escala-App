@@ -3,7 +3,6 @@ import sqlite3
 import pandas as pd
 import urllib.parse
 from datetime import datetime
-
 # ==============================================================================
 # 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
 # ==============================================================================
