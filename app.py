@@ -1,72 +1,64 @@
 import streamlit as st
+import sqlite3
 import pandas as pd
 import urllib.parse
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
+import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO PERMANENTE COM O GOOGLE SHEETS
+# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite Persistente)
 # ==============================================================================
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
-TELEFONE_ACOLHIMENTO = "5587988143263"
+TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
 EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
 
-# ID fixo e permanente da tua planilha no Google Drive
-SPREADSHEET_ID = "17EYZ4K6CzicFFRNlfVnaInhYg1NMAA21IguAh-wK4lI"
+# Garantir que a pasta de dados existe para persistência segura no servidor
+DATA_DIR = "data"
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
-def obter_conexao_gspread():
-    """
-    Estabelece a conexão com a API do Google Sheets utilizando as credenciais
-    guardadas no Secrets do Streamlit Cloud, com tratamento automático da chave PEM.
-    """
-    escopos = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    
-    if "connections" in st.secrets and "gsheets" in st.secrets["connections"]:
-        info_credenciais = dict(st.secrets["connections"]["gsheets"])
-    elif "type" in st.secrets:
-        info_credenciais = dict(st.secrets)
-    else:
-        raise ValueError("Credenciais do Google Sheets não encontradas nos Secrets do Streamlit.")
+DB_PATH = os.path.join(DATA_DIR, "escala_hospitalar_v2.db")
 
-    info_credenciais.pop("spreadsheet", None)
-    info_credenciais.pop("type_connection", None)
+# Conexão ao banco de dados SQLite com caminho persistente
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+cursor = conn.cursor()
 
-    if "private_key" in info_credenciais:
-        chave_str = str(info_credenciais["private_key"]).strip()
-        if "\\n" in chave_str:
-            chave_str = chave_str.replace("\\n", "\n")
-        info_credenciais["private_key"] = chave_str
+# Tabela de ocorrências com suporte a controle mensal e anual
+cursor.execute('''
+    CREATE TABLE IF NOT EXISTS ocorrencias (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        data_registro TEXT,
+        mes_referencia TEXT,
+        ano_referencia TEXT,
+        paciente TEXT,
+        programa TEXT,
+        tipo_alteracao TEXT,
+        profissionais TEXT,
+        ja_escala TEXT,
+        ja_passou TEXT,
+        motivo TEXT,
+        datas_plantao TEXT,
+        observacoes TEXT,
+        telefone_familia TEXT,
+        status_notificacao TEXT,
+        data_notificacao TEXT,
+        atendente_notificacao TEXT
+    )
+''')
+conn.commit()
 
-    creds = Credentials.from_service_account_info(info_credenciais, scopes=escopos)
-    client = gspread.authorize(creds)
-    
-    planilha = client.open_by_key(SPREADSHEET_ID)
-    aba = planilha.worksheet("Ocorrencias")
-    return aba
+# Adiciona colunas de referência caso o banco seja de versão anterior
+try:
+    cursor.execute("ALTER TABLE ocorrencias ADD COLUMN mes_referencia TEXT")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
-def carregar_dados():
-    """
-    Lê os dados acumulados permanentemente na aba 'Ocorrencias' do Google Sheets.
-    """
-    try:
-        aba = obter_conexao_gspread()
-        dados = aba.get_all_records()
-        if dados:
-            return pd.DataFrame(dados)
-        else:
-            return pd.DataFrame(columns=[
-                "id", "data_registro", "mes_referencia", "ano_referencia", "paciente",
-                "programa", "tipo_alteracao", "profissionais", "ja_escala", "ja_passou",
-                "motivo", "datas_plantao", "observacoes", "telefone_familia",
-                "status_notificacao", "data_notificacao", "atendente_notificacao"
-            ])
-    except Exception as e:
-        st.error(f"⚠️ Erro ao carregar dados do Google Sheets: {e}")
-        return pd.DataFrame()
+try:
+    cursor.execute("ALTER TABLE ocorrencias ADD COLUMN ano_referencia TEXT")
+    conn.commit()
+except sqlite3.OperationalError:
+    pass
 
 # Configuração da página no Streamlit
 st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
