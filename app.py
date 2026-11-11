@@ -8,7 +8,7 @@ from datetime import datetime
 # 1. CONFIGURAÇÃO DA PÁGINA E ESTILO INSTITUCIONAL (UNIMED)
 # ==============================================================================
 st.set_page_config(
-    page_title="Gestão de Escalas e Ocorrências - Unimed Lar", 
+    page_title="Gestão de Escalas - Unimed Lar", 
     page_icon="💚", 
     layout="wide"
 )
@@ -16,18 +16,13 @@ st.set_page_config(
 # Injeção de CSS personalizado para as cores institucionais (Verde Unimed)
 st.markdown("""
     <style>
-        /* Cor de fundo principal e fontes */
         .stApp {
             background-color: #F8F9FA;
         }
-        
-        /* Estilização dos cabeçalhos */
         h1, h2, h3 {
             color: #006633 !important;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
-
-        /* Botões principais do Streamlit */
         .stButton>button {
             background-color: #00995D;
             color: white;
@@ -37,18 +32,13 @@ st.markdown("""
             padding: 0.5rem 1rem;
             transition: 0.3s;
         }
-        
         .stButton>button:hover {
             background-color: #006633;
             color: white;
         }
-
-        /* Cartões de métricas e separadores */
         div[data-testid="stMetricValue"] {
             color: #006633;
         }
-
-        /* Alertas institucionais */
         .stAlert {
             border-radius: 8px;
         }
@@ -136,7 +126,7 @@ if not st.session_state["autenticado"]:
     st.caption(f"📧 Suporte Institucional: {EMAIL_SUPORTE_UNIDADE}")
     
     with st.form("form_login"):
-        user_input = st.text_input("Utilizador").strip().lower()
+        user_input = st.text_input("Utilizador", help="Insira o seu nome de utilizador institucional").strip().lower()
         pass_input = st.text_input("Palavra-passe", type="password")
         btn_login = st.form_submit_button("Entrar no Sistema")
         
@@ -150,7 +140,7 @@ if not st.session_state["autenticado"]:
 # ==============================================================================
 PACIENTES_BASE = {
     "A. B. C. S.": "PUL",
-    "A. V. S. S.": "PCP",
+    "A. V. S. A.": "PCP",
     "A. O. M.": "PUL",
     "B. R. S.": "PUL",
     "C. C. J.": "PUL",
@@ -172,7 +162,6 @@ PACIENTES_BASE = {
     "S. M. S. L.": "PUL",
     "T. J. A.": "PUL",
     "T. S. M.": "PUL",
-    "V. P. S.": "PUL",
     "V. E. A. F.": "PUL",
     "Z. G. P. J.": "PUL",
     "➕ Cadastrar Novo Paciente": "PUL"
@@ -201,12 +190,12 @@ perfil_atual = st.session_state["usuario_perfil"]
 if perfil_atual == "Terceirizada":
     abas_disponiveis = ["📝 1. Registrar Alteração (Terceirizada)"]
 elif perfil_atual == "Unidade de Saúde":
-    abas_disponiveis = ["📲 2. Notificar Família (Unidade de Saúde)", "📊 3. Histórico e Relatórios Mensais/Anuais"]
+    abas_disponiveis = ["📲 2. Notificar Família (Unidade de Saúde)", "📊 3. Histórico e Relatórios"]
 else:
     abas_disponiveis = [
         "📝 1. Registrar Alteração (Terceirizada)", 
         "📲 2. Notificar Família (Unidade de Saúde)", 
-        "📊 3. Histórico e Relatórios Mensais/Anuais"
+        "📊 3. Histórico e Relatórios"
     ]
 
 abas = st.tabs(abas_disponiveis)
@@ -218,9 +207,9 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
     idx_aba1 = abas_disponiveis.index("📝 1. Registrar Alteração (Terceirizada)")
     with abas[idx_aba1]:
         st.header("📋 Registrar Informe de Alteração de Escala")
-        st.write("Selecione o paciente na lista suspensa para registrar a ocorrência.")
+        st.info("💡 Preencha os campos abaixo com atenção para gerar o relatório e notificar a unidade.")
 
-        paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada)
+        paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada, help="Escolha o paciente correspondente à ocorrência")
         programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
 
         if paciente_selecionado == "➕ Cadastrar Novo Paciente":
@@ -245,13 +234,14 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                         "Alteração de horário/escala",
                         "Conhecer a Rotina",
                         "Outros"
-                    ]
+                    ],
+                    help="Selecione uma ou mais opções aplicáveis"
                 )
                 profissionais = st.text_area("Profissionais Envolvidos (Nome e Conselho)", placeholder="Ex:\n- SAÍDA: xxx xxxx xxxx (COREN: x.xxx.xxx)\n- SUPORTE: TACIANA GOMES DE MEDEIROS (COREN: 1.710.047)")
 
             with col2:
-                ja_da_escala = st.radio("Já é da escala do paciente?", ["Sim", "Não"])
-                ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"])
+                ja_da_escala = st.radio("Já é da escala do paciente?", ["Sim", "Não"], horizontal=True)
+                ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"], horizontal=True)
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Cobertura de atestado/férias")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - plantão diurno")
                 telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888")
@@ -266,7 +256,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
             else:
                 agora = datetime.now()
                 data_atual = agora.strftime("%Y-%m-%d %H:%M:%S")
-                mes_ref = agora.strftime("%m/%Y")
+                mes_ref = agora.strftime("%m/Y" if False else "%m/%Y")
                 ano_ref = agora.strftime("%Y")
                 
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
@@ -333,12 +323,12 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
     idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
     with abas[idx_aba2]:
         st.header("📥 Ocorrências Pendentes de Notificação")
-        st.write("Abaixo estão as alterações cadastradas aguardando contato com a família.")
+        st.write("Abaixo estão listadas as alterações cadastradas que aguardam o contato com a família.")
 
         df_pendentes = pd.read_sql_query("SELECT * FROM ocorrencias WHERE status_notificacao = 'Pendente'", conn)
 
         if df_pendentes.empty:
-            st.info("🎉 Nenhuma notificação pendente no momento.")
+            st.info("🎉 Nenhuma notificação pendente no momento. Bom trabalho!")
         else:
             for idx, row in df_pendentes.iterrows():
                 with st.expander(f"📌 Registro #{row['id']} - Paciente: {row['paciente']} ({row['programa']})"):
@@ -417,79 +407,34 @@ Agradecemos sua atenção e colaboração!"""
                                 st.rerun()
 
 # ==============================================================================
-# ABA 3: HISTÓRICO COMPLETO E RELATÓRIOS MENSAIS/ANUAIS
+# ABA 3: HISTÓRICO E RELATÓRIOS
 # ==============================================================================
 if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "📊 3. Histórico e Relatórios" in abas_disponiveis:
     idx_aba3 = 1 if perfil_atual == "Unidade de Saúde" else 2
     with abas[idx_aba3]:
-        st.header("📊 Histórico Completo de Ocorrências e Relatórios Mensais/Anuais")
-        st.caption(f"Relatório gerado pela unidade: {EMAIL_SUPORTE_UNIDADE}")
+        st.header("📊 Histórico Geral de Ocorrências")
+        st.caption(f"Relatório gerado institucionalmente por: {EMAIL_SUPORTE_UNIDADE}")
         
         df_todos = pd.read_sql_query("SELECT * FROM ocorrencias ORDER BY id DESC", conn)
 
         if df_todos.empty:
             st.warning("Nenhum registro encontrado no banco de dados.")
         else:
-            st.subheader("🔍 Filtros de Pesquisa por Ano, Mês e Categoria")
-            f_col1, f_col2, f_col3, f_col4, f_col5 = st.columns(5)
-            
-            # Filtro por Ano
-            anos_unicos = [a for a in df_todos['ano_referencia'].dropna().unique() if a]
-            lista_anos_filtro = ["Todos"] + sorted(anos_unicos, reverse=True)
-            with f_col1:
-                filtro_ano = st.selectbox("📅 Ano:", lista_anos_filtro)
-
-            # Filtro por Mês
-            meses_unicos = [m for m in df_todos['mes_referencia'].dropna().unique() if m]
-            lista_meses_filtro = ["Todos"] + sorted(meses_unicos, reverse=True)
-            with f_col2:
-                filtro_mes = st.selectbox("🗓️ Mês/Ano:", lista_meses_filtro)
-
-            with f_col3:
-                filtro_status = st.selectbox("Status:", ["Todos", "Pendente", "Concluído"])
-            
-            with f_col4:
-                lista_pacientes_filtro = ["Todos"] + sorted(list(df_todos['paciente'].unique()))
-                filtro_paciente = st.selectbox("Paciente:", lista_pacientes_filtro)
-                
-            with f_col5:
-                lista_programas_filtro = ["Todos"] + sorted(list(df_todos['programa'].unique()))
-                fil_programa = st.selectbox("Programa:", lista_programas_filtro)
-
-            df_filtrado = df_todos.copy()
-
-            if filtro_ano != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["ano_referencia"] == filtro_ano]
-
-            if filtro_mes != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["mes_referencia"] == filtro_mes]
-
-            if filtro_status != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["status_notificacao"] == filtro_status]
-                
-            if filtro_paciente != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["paciente"] == filtro_paciente]
-                
-            if fil_programa != "Todos":
-                df_filtrado = df_filtrado[df_filtrado["programa"] == fil_programa]
-
-            # Métricas rápidas
+            # Métricas rápidas institucionais
             col_m1, col_m2, col_m3 = st.columns(3)
-            col_m1.metric("Total no Período", len(df_filtrado))
-            col_m2.metric("Concluídas", len(df_filtrado[df_filtrado["status_notificacao"] == "Concluído"]))
-            col_m3.metric("Pendentes", len(df_filtrado[df_filtrado["status_notificacao"] == "Pendente"]))
+            col_m1.metric("Total de Ocorrências", len(df_todos))
+            col_m2.metric("Concluídas", len(df_todos[df_todos["status_notificacao"] == "Concluído"]))
+            col_m3.metric("Pendentes", len(df_todos[df_todos["status_notificacao"] == "Pendente"]))
 
             st.divider()
-            st.write(f"Exibindo **{len(df_filtrado)}** registro(s) encontrado(s):")
-            st.dataframe(df_filtrado, use_container_width=True)
+            st.subheader("📋 Registros Armazenados")
+            st.dataframe(df_todos, use_container_width=True)
 
-            csv_organizado = df_filtrado.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
-            
-            nome_arquivo = f"relatorio_escalas_{filtro_mes.replace('/', '_') if filtro_mes != 'Todos' else filtro_ano}.csv"
+            csv_organizado = df_todos.to_csv(index=False, sep=';', encoding='utf-8-sig').encode('utf-8-sig')
             
             st.download_button(
-                label=f"📥 Baixar Relatório Filtrado em Excel / CSV",
+                label=f"📥 Baixar Relatório Completo em Excel / CSV",
                 data=csv_organizado,
-                file_name=nome_arquivo,
+                file_name="relatorio_geral_escalas.csv",
                 mime="text/csv"
             )
