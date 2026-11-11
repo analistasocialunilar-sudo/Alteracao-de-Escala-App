@@ -8,7 +8,7 @@ from datetime import datetime
 # 1. CONFIGURAÇÃO DA PÁGINA E ESTILO INSTITUCIONAL (UNIMED)
 # ==============================================================================
 st.set_page_config(
-    page_title="Gestão de Escalas - Unimed Lar", 
+    page_title="Gestão de Escalas - Atenção Domiciliar Unimed", 
     page_icon="💚", 
     layout="wide"
 )
@@ -26,7 +26,7 @@ st.markdown("""
         .stButton>button {
             background-color: #00995D;
             color: white;
-            border-radius: 8px;
+            border-radius: 12px;
             border: none;
             font-weight: bold;
             padding: 0.5rem 1rem;
@@ -40,7 +40,7 @@ st.markdown("""
             color: #006633;
         }
         .stAlert {
-            border-radius: 8px;
+            border-radius: 12px;
         }
     </style>
 """, unsafe_allow_html=True)
