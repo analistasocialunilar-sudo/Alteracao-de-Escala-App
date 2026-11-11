@@ -127,7 +127,6 @@ PACIENTES_BASE = {
     "S. M. S. L.": "PUL",
     "T. J. A.": "PUL",
     "T. S. M.": "PUL",
-    "V. P. S.": "PUL",
     "V. E. A. F.": "PUL",
     "Z. G. P. J.": "PUL",
     "➕ Cadastrar Novo Paciente": "PUL"
@@ -209,7 +208,7 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"])
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Cobertura de atestado/férias")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - plantão diurno")
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888")
+                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: +55 87 9112-8133")
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
@@ -310,7 +309,7 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                         "WhatsApp do Responsável/Família (com 55 e DDD) *", 
                         value=tel_atual, 
                         key=f"tel_{row['id']}", 
-                        placeholder="Ex: 5587999998888"
+                        placeholder="Ex: +55 87 9112-8133"
                     )
 
                     texto_whatsapp = f"""*Comunicado Importante!* - *AVISO DE AJUSTE DE ESCALA* •
