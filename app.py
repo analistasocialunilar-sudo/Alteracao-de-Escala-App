@@ -8,7 +8,7 @@ from datetime import datetime
 # 1. CONFIGURAÇÃO DA PÁGINA E ESTILO INSTITUCIONAL (UNIMED)
 # ==============================================================================
 st.set_page_config(
-    page_title="Gestão de Escalas - Atenção Domiciliar Unimed", 
+    page_title="Sistema de Gestão de Escalas e Ocorrências", 
     page_icon="💚", 
     layout="wide"
 )
