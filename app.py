@@ -2,18 +2,18 @@ import streamlit as st
 import sqlite3
 import pandas as pd
 import urllib.parse
+import re
 from datetime import datetime
 
 # ==============================================================================
 # 1. CONFIGURAÇÃO DA PÁGINA E ESTILO INSTITUCIONAL (UNIMED)
 # ==============================================================================
 st.set_page_config(
-    page_title="Sistema de Gestão de Escalas e Ocorrências", 
+    page_title="Gestão de Escalas - Unimed Lar", 
     page_icon="💚", 
     layout="wide"
 )
 
-# Injeção de CSS personalizado para as cores institucionais (Verde Unimed)
 st.markdown("""
     <style>
         .stApp {
@@ -26,7 +26,7 @@ st.markdown("""
         .stButton>button {
             background-color: #00995D;
             color: white;
-            border-radius: 12px;
+            border-radius: 8px;
             border: none;
             font-weight: bold;
             padding: 0.5rem 1rem;
@@ -40,14 +40,14 @@ st.markdown("""
             color: #006633;
         }
         .stAlert {
-            border-radius: 12px;
+            border-radius: 8px;
         }
     </style>
 """, unsafe_allow_html=True)
 
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
-TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
-EMAIL_SUPORTE_UNIDADE = "acolhimentoatencaodomiciliar@unimedvsf.coop.br"
+TELEFONE_ACOLHIMENTO = "5587988143263"
+EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
 
 # Conexão ao banco de dados SQLite local 'escala_hospitalar_v2.db'
 conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
@@ -136,35 +136,36 @@ if not st.session_state["autenticado"]:
     st.stop()
 
 # ==============================================================================
-# 3. BASE DE DADOS DE PACIENTES
+# 3. BASE DE DADOS DE PACIENTES E CONTACTOS AUTOMÁTICOS (SIGILOSO)
 # ==============================================================================
+# Podes colar os telefones no formato que copias do WhatsApp, ex: "+55 87 9112-8133"
 PACIENTES_BASE = {
-    "A. B. C. S.": "PUL",
-    "A. V. S. A.": "PCP",
-    "A. O. M.": "PUL",
-    "B. R. S.": "PUL",
-    "C. C. J.": "PUL",
-    "D. L. R. S. L.": "PUL",
-    "E. G. B. A.": "PUL",
-    "E. V. L. M.": "PUL",
-    "E. M. A.": "PUL",
-    "J. A. P.": "PUL",
-    "J. R. A. J.": "PUL",
-    "J. V. M.": "PCP",
-    "M. S. L.": "PUL",
-    "M. G. S. S. A.": "PUL",
-    "M. J. A. O.": "PUL",
-    "M. O. G.": "PUL",
-    "N. B. B. V.": "PUL",
-    "P. V. C. S.": "PUL",
-    "P. J. V.": "PCP",
-    "S. R. N.": "PUL",
-    "S. M. S. L.": "PUL",
-    "T. J. A.": "PUL",
-    "T. S. M.": "PUL",
-    "V. E. A. F.": "PUL",
-    "Z. G. P. J.": "PUL",
-    "➕ Cadastrar Novo Paciente": "PUL"
+    "A. B. C. S.": ("PUL", "+55 87 8156-3564"),
+    "A. V. S. S.": ("PCP", "+55 87 8135-5610"),
+    "A. O. M.": ("PUL", "+55 74 9129-5538"),
+    "B. R. S.": ("PUL", "+55 87 8131-2536"),
+    "C. C. J.": ("PUL", "+55 71 9224-3144"),
+    "D. L. R. S. L.": ("PUL", "+55 74 8841-4901"),
+    "E. G. B. A.": ("PUL", "+55 74 8807-2170"),
+    "E. V. L. M.": ("PUL", "+55 87 8819-7835"),
+    "E. M. A.": ("PUL", "+55 74 8863-1146"),
+    "J. A. P.": ("PUL", "+55 87 8871-9019"),
+    "J. R. A. J.": ("PUL", "+55 87 8807-5159"),
+    "J. V. M.": ("PCP", "+55 74 9161-1489"),
+    "M. S. L.": ("PUL", "+55 74 9124-1875"),
+    "M. G. S. A. M": ("PUL", "+55 74 8806-6976"),
+    "M. J. A. O.": ("PUL", "+55 74 8825-9712"),
+    "M. O. G.": ("PUL", "+55 87 8816-2384"),
+    "N. B. B. V.": ("PUL", "+55 87 8804-2763"),
+    "P. V. C. S.": ("PUL", "+55 74 8151-8607"),
+    "P. J. V.": ("PCP", "+55 87 8868-7707"),
+    "S. R. N.": ("PUL", "+55 74 9130-3093"),
+    "S. M. S. L.": ("PUL", "+55 87 8866-4258"),
+    "T. J. A.": ("PUL", "+55 87 8828-3196"),
+    "T. S. M.": ("PUL", "+55 74 9996-3761"),
+    "V. E. A. F.": ("PUL", "+55 74 8819-3348"),
+    "Z. G. P. J.": ("PUL", "+55 87 8177-1227"),
+    "➕ Cadastrar Novo Paciente": ("PUL", "+55 87 0000-0000")
 }
 
 lista_nomes_ordenada = list(PACIENTES_BASE.keys())
@@ -210,10 +211,13 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
         st.info("💡 Preencha os campos abaixo com atenção para gerar o relatório e notificar a unidade.")
 
         paciente_selecionado = st.selectbox("Selecione o Paciente *", lista_nomes_ordenada, help="Escolha o paciente correspondente à ocorrência")
-        programa_sugerido = PACIENTES_BASE.get(paciente_selecionado, "PUL")
+        dados_paciente = PACIENTES_BASE.get(paciente_selecionado, ("PUL", ""))
+        programa_sugerido = dados_paciente[0]
+        telefone_automatico = dados_paciente[1]
 
         if paciente_selecionado == "➕ Cadastrar Novo Paciente":
             nome_paciente_final = st.text_input("Digite as Iniciais do Novo Paciente *", placeholder="Ex: X. Y. Z.")
+            telefone_automatico = st.text_input("WhatsApp do Responsável/Família *", placeholder="Ex: +55 87 9999-8888")
         else:
             nome_paciente_final = paciente_selecionado
 
@@ -244,7 +248,8 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
                 ja_passou_escala = st.radio("Já passou pela escala antes?", ["Sim", "Não"], horizontal=True)
                 motivo = st.text_input("Motivo da Alteração", placeholder="Ex: Cobertura de atestado/férias")
                 datas_plantao = st.text_input("Data da Rotina / Período / Início", placeholder="Ex: Suporte: 01/10/2026 - plantão diurno")
-                telefone_familia = st.text_input("WhatsApp do Responsável/Família (Opcional)", placeholder="Ex: 5587999998888")
+                
+                st.caption("🔒 *O contacto da família é associado automaticamente e protegido por sigilo institucional.*")
 
             observacoes = st.text_area("Observações Gerais", value="Favor comunicar a família.")
             
@@ -256,11 +261,11 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
             else:
                 agora = datetime.now()
                 data_atual = agora.strftime("%Y-%m-%d %H:%M:%S")
-                mes_ref = agora.strftime("%m/Y" if False else "%m/%Y")
+                mes_ref = agora.strftime("%m/%Y")
                 ano_ref = agora.strftime("%Y")
                 
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
-                telefone_salvar = telefone_familia.strip() if telefone_familia.strip() else "Não informado"
+                telefone_salvar = telefone_automatico.strip() if telefone_automatico.strip() else "Não informado"
                 
                 cursor.execute('''
                     INSERT INTO ocorrencias (
@@ -317,7 +322,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                     ''', unsafe_allow_html=True)
 
 # ==============================================================================
-# ABA 2: PAINEL DE NOTIFICAÇÃO
+# ABA 2: PAINEL DE NOTIFICAÇÃO (RESTRITO À UNIDADE E GESTÃO)
 # ==============================================================================
 if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
     idx_aba2 = abas_disponiveis.index("📲 2. Notificar Família (Unidade de Saúde)")
@@ -340,13 +345,19 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
                     st.write(f"**Observações:** {row['observacoes']}")
                     
-                    tel_atual = "" if row['telefone_familia'] == "Não informado" else row['telefone_familia']
+                    tel_automatico_registo = row['telefone_familia'] if row['telefone_familia'] != "Não informado" else ""
+                    
+                    st.info(f"📱 **Contacto Automático da Família:** {tel_automatico_registo if tel_automatico_registo else 'Não cadastrado'}")
+                    
                     telefone_editado = st.text_input(
-                        "WhatsApp do Responsável/Família (com 55 e DDD) *", 
-                        value=tel_atual, 
+                        "Confirmar / Ajustar WhatsApp do Responsável *", 
+                        value=tel_automatico_registo, 
                         key=f"tel_{row['id']}", 
-                        placeholder="Ex: 5587999998888"
+                        placeholder="Ex: +55 87 9999-8888"
                     )
+
+                    # LIMPEZA AUTOMÁTICA DO TELEFONE PARA O WHATSAPP (Remove espaços, traços e parênteses)
+                    telefone_limpo = re.sub(r'\D', '', telefone_editado)
 
                     texto_whatsapp = f"""*Comunicado Importante!* - *AVISO DE AJUSTE DE ESCALA* •
 
@@ -363,14 +374,14 @@ Favor, confirmar o recebimento e ciência deste comunicado.
 Agradecemos sua atenção e colaboração!"""
 
                     texto_encoded = urllib.parse.quote(texto_whatsapp)
-                    num_link = telefone_editado.strip() if telefone_editado.strip() else "000000000000"
+                    num_link = telefone_limpo if telefone_limpo else "000000000000"
                     link_wa = f"https://wa.me/{num_link}?text={texto_encoded}"
 
                     st.markdown("---")
                     col_wa, col_atendente, col_btn = st.columns([1, 1.5, 1.5])
                     
                     with col_wa:
-                        if telefone_editado.strip():
+                        if telefone_limpo:
                             st.markdown(f'''
                                 <a href="{link_wa}" target="_blank">
                                     <button style="background-color: #00995D; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
@@ -420,7 +431,6 @@ if "📊 3. Histórico e Relatórios Mensais/Anuais" in abas_disponiveis or "�
         if df_todos.empty:
             st.warning("Nenhum registro encontrado no banco de dados.")
         else:
-            # Métricas rápidas institucionais
             col_m1, col_m2, col_m3 = st.columns(3)
             col_m1.metric("Total de Ocorrências", len(df_todos))
             col_m2.metric("Concluídas", len(df_todos[df_todos["status_notificacao"] == "Concluído"]))
