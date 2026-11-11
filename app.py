@@ -47,7 +47,7 @@ st.markdown("""
 
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
-EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
+EMAIL_SUPORTE_UNIDADE = "acolhimentoatencaodomiciliar@unimedvsf.coop.br"
 
 # Conexão ao banco de dados SQLite local 'escala_hospitalar_v2.db'
 conn = sqlite3.connect("escala_hospitalar_v2.db", check_same_thread=False)
