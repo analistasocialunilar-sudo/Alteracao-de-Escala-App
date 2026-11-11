@@ -138,7 +138,6 @@ if not st.session_state["autenticado"]:
 # ==============================================================================
 # 3. BASE DE DADOS DE PACIENTES E CONTACTOS AUTOMÁTICOS (SIGILOSO)
 # ==============================================================================
-# Podes colar os telefones no formato que copias do WhatsApp, ex: "+55 87 9112-8133"
 PACIENTES_BASE = {
     "A. B. C. S.": ("PUL", "+55 87 8156-3564"),
     "A. V. S. S.": ("PCP", "+55 87 8135-5610"),
@@ -345,13 +344,18 @@ if "📲 2. Notificar Família (Unidade de Saúde)" in abas_disponiveis:
                     st.write(f"**Detalhes do Plantão:** {row['datas_plantao']}")
                     st.write(f"**Observações:** {row['observacoes']}")
                     
-                    tel_automatico_registo = row['telefone_familia'] if row['telefone_familia'] != "Não informado" else ""
+                    # Tenta buscar o contacto oficial diretamente do dicionário pelo nome do paciente
+                    paciente_nome = row['paciente']
+                    contacto_oficial = PACIENTES_BASE.get(paciente_nome, ("", ""))[1]
                     
-                    st.info(f"📱 **Contacto Automático da Família:** {tel_automatico_registo if tel_automatico_registo else 'Não cadastrado'}")
+                    # Usa o contacto oficial se existir, senão usa o gravado
+                    telefone_sugerido = contacto_oficial if contacto_oficial else (row['telefone_familia'] if row['telefone_familia'] != "Não informado" else "")
+                    
+                    st.info(f"📱 **Contacto Automático da Família:** {telefone_sugerido if telefone_sugerido else 'Não cadastrado'}")
                     
                     telefone_editado = st.text_input(
                         "Confirmar / Ajustar WhatsApp do Responsável *", 
-                        value=tel_automatico_registo, 
+                        value=telefone_sugerido, 
                         key=f"tel_{row['id']}", 
                         placeholder="Ex: +55 87 9999-8888"
                     )
