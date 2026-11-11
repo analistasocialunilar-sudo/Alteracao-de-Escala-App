@@ -5,8 +5,56 @@ import urllib.parse
 from datetime import datetime
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CONEXÃO COM O BANCO DE DADOS (SQLite)
+# 1. CONFIGURAÇÃO DA PÁGINA E ESTILO INSTITUCIONAL (UNIMED)
 # ==============================================================================
+st.set_page_config(
+    page_title="Gestão de Escalas e Ocorrências - Unimed Lar", 
+    page_icon="💚", 
+    layout="wide"
+)
+
+# Injeção de CSS personalizado para as cores institucionais (Verde Unimed)
+st.markdown("""
+    <style>
+        /* Cor de fundo principal e fontes */
+        .stApp {
+            background-color: #F8F9FA;
+        }
+        
+        /* Estilização dos cabeçalhos */
+        h1, h2, h3 {
+            color: #006633 !important;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        /* Botões principais do Streamlit */
+        .stButton>button {
+            background-color: #00995D;
+            color: white;
+            border-radius: 8px;
+            border: none;
+            font-weight: bold;
+            padding: 0.5rem 1rem;
+            transition: 0.3s;
+        }
+        
+        .stButton>button:hover {
+            background-color: #006633;
+            color: white;
+        }
+
+        /* Cartões de métricas e separadores */
+        div[data-testid="stMetricValue"] {
+            color: #006633;
+        }
+
+        /* Alertas institucionais */
+        .stAlert {
+            border-radius: 8px;
+        }
+    </style>
+""", unsafe_allow_html=True)
+
 TELEFONE_RECEPCAO_UNIDADE = "558791128133"
 TELEFONE_ACOLHIMENTO = "5587988143263"  # Número exato do Acolhimento
 EMAIL_SUPORTE_UNIDADE = "analistasocial.unilar@gmail.com"
@@ -52,9 +100,6 @@ try:
 except sqlite3.OperationalError:
     pass
 
-# Configuração da página no Streamlit
-st.set_page_config(page_title="Gestão de Escalas e Ocorrências", page_icon="🏥", layout="wide")
-
 # ==============================================================================
 # 2. SISTEMA DE AUTENTICAÇÃO E LOGIN
 # ==============================================================================
@@ -86,9 +131,9 @@ def realizar_logout():
     st.rerun()
 
 if not st.session_state["autenticado"]:
-    st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
-    st.subheader("🔐 Acesso Restrito - Faça o seu Login")
-    st.caption(f"📧 Contacto Institucional: {EMAIL_SUPORTE_UNIDADE}")
+    st.title("💚 Unimed Lar - Gestão de Escalas")
+    st.subheader("🔐 Acesso Restrito - Identifique-se")
+    st.caption(f"📧 Suporte Institucional: {EMAIL_SUPORTE_UNIDADE}")
     
     with st.form("form_login"):
         user_input = st.text_input("Utilizador").strip().lower()
@@ -140,8 +185,8 @@ lista_nomes_ordenada = list(PACIENTES_BASE.keys())
 # ==============================================================================
 col_tit, col_user = st.columns([3, 1])
 with col_tit:
-    st.title("🏥 Sistema de Gestão de Escalas e Ocorrências")
-    st.caption(f"Atenção Domiciliar - Registo de Alterações, Notificações e Histórico Mensal/Anual (📧 {EMAIL_SUPORTE_UNIDADE})")
+    st.title("💚 Sistema de Gestão de Escalas e Ocorrências")
+    st.caption(f"Atenção Domiciliar (Unimed Lar) - Registo, Notificações e Histórico (📧 {EMAIL_SUPORTE_UNIDADE})")
 
 with col_user:
     st.write(f"👤 **{st.session_state['usuario_nome']}**")
@@ -221,8 +266,8 @@ if "📝 1. Registrar Alteração (Terceirizada)" in abas_disponiveis:
             else:
                 agora = datetime.now()
                 data_atual = agora.strftime("%Y-%m-%d %H:%M:%S")
-                mes_ref = agora.strftime("%m/%Y")  # Exemplo: '10/2026'
-                ano_ref = agora.strftime("%Y")   # Exemplo: '2026'
+                mes_ref = agora.strftime("%m/%Y")
+                ano_ref = agora.strftime("%Y")
                 
                 tipos_str = " e ".join(tipo_alteracao) if tipo_alteracao else "Não informado"
                 telefone_salvar = telefone_familia.strip() if telefone_familia.strip() else "Não informado"
@@ -266,7 +311,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                 with col_btn1:
                     st.markdown(f'''
                         <a href="{link_recepcao}" target="_blank">
-                            <button style="background-color: #25D366; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
+                            <button style="background-color: #00995D; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
                                 📲 Enviar p/ Acolhimento 
                             </button>
                         </a>
@@ -275,7 +320,7 @@ _Por favor, realizar a notificação da família no sistema._"""
                 with col_btn2:
                     st.markdown(f'''
                         <a href="{link_acolhimento}" target="_blank">
-                            <button style="background-color: #128C7E; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
+                            <button style="background-color: #006633; color: white; padding: 12px 20px; border: none; border-radius: 8px; font-weight: bold; font-size: 15px; cursor: pointer; width: 100%;">
                                 🏥 Enviar p/ Serviço Social
                             </button>
                         </a>
@@ -338,7 +383,7 @@ Agradecemos sua atenção e colaboração!"""
                         if telefone_editado.strip():
                             st.markdown(f'''
                                 <a href="{link_wa}" target="_blank">
-                                    <button style="background-color: #25D366; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
+                                    <button style="background-color: #00995D; color: white; padding: 10px 16px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;">
                                         📱 Abrir WhatsApp
                                     </button>
                                 </a>
