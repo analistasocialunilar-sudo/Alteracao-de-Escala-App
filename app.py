@@ -95,7 +95,7 @@ except sqlite3.OperationalError:
 # ==============================================================================
 USUARIOS = {
     "terceirizada": {"senha": "terceirizada@123", "perfil": "Terceirizada", "nome": "Empresa Terceirizada"},
-    "unidade": {"senha": "un1m3d210", "perfil": "Unidade de Saúde", "nome": "Equipa da Unidade"},
+    "unidade": {"senha": "un1m3d210", "perfil": "Unidade de Saúde", "nome": "Unidade Assistencial"},
     "admin": {"senha": "adu@210escalas", "perfil": "Administrador", "nome": "Gestor do Sistema"}
 }
 
